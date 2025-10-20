@@ -9,14 +9,272 @@ class CableCalcApp(tk.Tk):
     WINDOW_TITLE = "Proračun kablova"
     WINDOW_GEOMETRY = "1200x800"
 
-    INSULATION_TYPES = ["PVC", "XLP-EPR", "EPR", "PE"]
+    INSULATION_OPTIONS = [
+        "PVC (70°C)",
+        "XLPE/EPR (90°C)",
+    ]
+    INSULATION_META = {
+        "PVC (70°C)": {"key": "PVC", "theta": 70},
+        "XLPE/EPR (90°C)": {"key": "XLPE", "theta": 90},
+    }
+
     CONDUCTOR_TYPES = ["Cu", "Al"]
     VOLTAGE_LEVELS = ["230", "400"]
+    INSTALLATION_METHODS = ["A1", "A2", "B1", "B2", "C", "D", "E", "F"]
     DROP_LIMIT_KEYS = {
         "UIDM": 5.0,
         "SVDM": 3.0,
         "SVTS": 5.0,
         "UITS": 8.0,
+    }
+
+    RESISTIVITY_20 = {"Cu": 0.017241, "Al": 0.028264}
+    TEMP_COEFF = {"Cu": 0.00393, "Al": 0.00403}
+    REACTANCE_PER_KM = {"default": 0.08, "D": 0.09}
+
+    AMPACITY_TABLE = {
+        "PVC": {
+            "Cu": {
+                "B1": {
+                    1.5: 14.5,
+                    2.5: 19.5,
+                    4.0: 26.0,
+                    6.0: 32.0,
+                    10.0: 44.0,
+                    16.0: 57.0,
+                    25.0: 76.0,
+                    35.0: 96.0,
+                    50.0: 115.0,
+                    70.0: 146.0,
+                    95.0: 176.0,
+                    120.0: 202.0,
+                    150.0: 231.0,
+                    185.0: 262.0,
+                    240.0: 308.0,
+                },
+                "B2": {
+                    1.5: 16.5,
+                    2.5: 22.0,
+                    4.0: 29.0,
+                    6.0: 37.0,
+                    10.0: 51.0,
+                    16.0: 68.0,
+                    25.0: 89.0,
+                    35.0: 110.0,
+                    50.0: 131.0,
+                    70.0: 164.0,
+                    95.0: 196.0,
+                    120.0: 225.0,
+                    150.0: 257.0,
+                    185.0: 293.0,
+                    240.0: 344.0,
+                },
+                "C": {
+                    1.5: 18.0,
+                    2.5: 24.0,
+                    4.0: 32.0,
+                    6.0: 41.0,
+                    10.0: 57.0,
+                    16.0: 76.0,
+                    25.0: 101.0,
+                    35.0: 125.0,
+                    50.0: 150.0,
+                    70.0: 192.0,
+                    95.0: 232.0,
+                    120.0: 269.0,
+                    150.0: 309.0,
+                    185.0: 355.0,
+                    240.0: 415.0,
+                },
+                "D": {
+                    10.0: 46.0,
+                    16.0: 61.0,
+                    25.0: 80.0,
+                    35.0: 99.0,
+                    50.0: 118.0,
+                    70.0: 146.0,
+                    95.0: 176.0,
+                    120.0: 202.0,
+                    150.0: 229.0,
+                    185.0: 260.0,
+                    240.0: 302.0,
+                },
+            },
+            "Al": {
+                "B1": {
+                    10.0: 34.0,
+                    16.0: 44.0,
+                    25.0: 58.0,
+                    35.0: 72.0,
+                    50.0: 86.0,
+                    70.0: 109.0,
+                    95.0: 131.0,
+                    120.0: 150.0,
+                    150.0: 171.0,
+                    185.0: 194.0,
+                    240.0: 225.0,
+                },
+                "B2": {
+                    10.0: 39.0,
+                    16.0: 50.0,
+                    25.0: 66.0,
+                    35.0: 81.0,
+                    50.0: 95.0,
+                    70.0: 121.0,
+                    95.0: 146.0,
+                    120.0: 167.0,
+                    150.0: 190.0,
+                    185.0: 215.0,
+                    240.0: 250.0,
+                },
+                "C": {
+                    10.0: 47.0,
+                    16.0: 61.0,
+                    25.0: 80.0,
+                    35.0: 99.0,
+                    50.0: 118.0,
+                    70.0: 146.0,
+                    95.0: 176.0,
+                    120.0: 202.0,
+                    150.0: 229.0,
+                    185.0: 260.0,
+                    240.0: 302.0,
+                },
+                "D": {
+                    16.0: 56.0,
+                    25.0: 72.0,
+                    35.0: 86.0,
+                    50.0: 101.0,
+                    70.0: 122.0,
+                    95.0: 144.0,
+                    120.0: 163.0,
+                    150.0: 184.0,
+                    185.0: 207.0,
+                    240.0: 240.0,
+                },
+            },
+        },
+        "XLPE": {
+            "Cu": {
+                "B1": {
+                    1.5: 17.5,
+                    2.5: 23.5,
+                    4.0: 31.0,
+                    6.0: 39.0,
+                    10.0: 53.0,
+                    16.0: 70.0,
+                    25.0: 94.0,
+                    35.0: 118.0,
+                    50.0: 141.0,
+                    70.0: 181.0,
+                    95.0: 220.0,
+                    120.0: 252.0,
+                    150.0: 288.0,
+                    185.0: 327.0,
+                    240.0: 384.0,
+                },
+                "B2": {
+                    1.5: 19.5,
+                    2.5: 26.0,
+                    4.0: 34.0,
+                    6.0: 44.0,
+                    10.0: 61.0,
+                    16.0: 81.0,
+                    25.0: 109.0,
+                    35.0: 137.0,
+                    50.0: 165.0,
+                    70.0: 206.0,
+                    95.0: 249.0,
+                    120.0: 286.0,
+                    150.0: 327.0,
+                    185.0: 372.0,
+                    240.0: 437.0,
+                },
+                "C": {
+                    1.5: 23.0,
+                    2.5: 30.0,
+                    4.0: 41.0,
+                    6.0: 53.0,
+                    10.0: 73.0,
+                    16.0: 98.0,
+                    25.0: 129.0,
+                    35.0: 159.0,
+                    50.0: 195.0,
+                    70.0: 250.0,
+                    95.0: 306.0,
+                    120.0: 353.0,
+                    150.0: 407.0,
+                    185.0: 467.0,
+                    240.0: 545.0,
+                },
+                "D": {
+                    10.0: 55.0,
+                    16.0: 73.0,
+                    25.0: 96.0,
+                    35.0: 118.0,
+                    50.0: 140.0,
+                    70.0: 174.0,
+                    95.0: 210.0,
+                    120.0: 241.0,
+                    150.0: 273.0,
+                    185.0: 309.0,
+                    240.0: 360.0,
+                },
+            },
+            "Al": {
+                "B1": {
+                    10.0: 40.0,
+                    16.0: 52.0,
+                    25.0: 69.0,
+                    35.0: 86.0,
+                    50.0: 102.0,
+                    70.0: 129.0,
+                    95.0: 155.0,
+                    120.0: 177.0,
+                    150.0: 201.0,
+                    185.0: 228.0,
+                    240.0: 264.0,
+                },
+                "B2": {
+                    10.0: 45.0,
+                    16.0: 58.0,
+                    25.0: 77.0,
+                    35.0: 95.0,
+                    50.0: 112.0,
+                    70.0: 142.0,
+                    95.0: 173.0,
+                    120.0: 198.0,
+                    150.0: 225.0,
+                    185.0: 255.0,
+                    240.0: 296.0,
+                },
+                "C": {
+                    10.0: 55.0,
+                    16.0: 73.0,
+                    25.0: 96.0,
+                    35.0: 118.0,
+                    50.0: 140.0,
+                    70.0: 174.0,
+                    95.0: 210.0,
+                    120.0: 241.0,
+                    150.0: 273.0,
+                    185.0: 309.0,
+                    240.0: 360.0,
+                },
+                "D": {
+                    16.0: 67.0,
+                    25.0: 87.0,
+                    35.0: 104.0,
+                    50.0: 122.0,
+                    70.0: 149.0,
+                    95.0: 177.0,
+                    120.0: 200.0,
+                    150.0: 225.0,
+                    185.0: 253.0,
+                    240.0: 292.0,
+                },
+            },
+        },
     }
 
     TREE_COLUMNS = (
@@ -38,7 +296,7 @@ class CableCalcApp(tk.Tk):
         "T",
         "Ucf",
         "Icalc [A]",
-        "R_base [A]",
+        "R_base [Ω/km]",
         "Iz [A]",
         "ΔU %",
         "Limit ΔU %",
@@ -82,7 +340,7 @@ class CableCalcApp(tk.Tk):
             ("Strujni krug", ""),
             ("Deonica OD", ""),
             ("Deonica DO", ""),
-            ("Tip-IZOLACIJE", self.INSULATION_TYPES[0]),
+            ("Tip-IZOLACIJE", self.INSULATION_OPTIONS[0]),
             ("Tip-PROVODNIKA", self.CONDUCTOR_TYPES[0]),
             ("Oznaka-tip-KABLA", ""),
             ("Pi, W", ""),
@@ -92,7 +350,7 @@ class CableCalcApp(tk.Tk):
             ("cos φ", ""),
             ("Dužina L, m", ""),
             ("Presek, mm²", ""),
-            ("Način polaganja", ""),
+            ("Način polaganja", self.INSTALLATION_METHODS[4]),
             ("S", "1.0"),
             ("T", "1.0"),
             ("Ucf", "1.0"),
@@ -109,11 +367,13 @@ class CableCalcApp(tk.Tk):
             self._form_values[label] = var
 
             if label == "Tip-IZOLACIJE":
-                widget = ttk.Combobox(grid, textvariable=var, values=self.INSULATION_TYPES, state="readonly")
+                widget = ttk.Combobox(grid, textvariable=var, values=self.INSULATION_OPTIONS, state="readonly")
             elif label == "Tip-PROVODNIKA":
                 widget = ttk.Combobox(grid, textvariable=var, values=self.CONDUCTOR_TYPES, state="readonly")
             elif label == "U":
                 widget = ttk.Combobox(grid, textvariable=var, values=self.VOLTAGE_LEVELS, state="readonly")
+            elif label == "Način polaganja":
+                widget = ttk.Combobox(grid, textvariable=var, values=self.INSTALLATION_METHODS, state="readonly")
             elif label == "Ключ ΔU":
                 widget = ttk.Combobox(
                     grid, textvariable=var, values=list(self.DROP_LIMIT_KEYS.keys()), state="readonly"
@@ -175,6 +435,47 @@ class CableCalcApp(tk.Tk):
             messagebox.showerror("Ошибка ввода", f"Поле '{field_name}' содержит недопустимое значение: {value}")
             return None
 
+    def _lookup_ampacity(self, insulation_key: str, conductor: str, laying: str, area: float) -> float | None:
+        conductor_tables = self.AMPACITY_TABLE.get(insulation_key, {}).get(conductor, {})
+        method_table = conductor_tables.get(laying)
+        if not method_table:
+            return None
+
+        standard_sections = sorted(method_table)
+        if not standard_sections:
+            return None
+        for section in standard_sections:
+            if math.isclose(area, section, rel_tol=1e-6, abs_tol=1e-3):
+                return method_table[section]
+
+        for lower, upper in zip(standard_sections, standard_sections[1:]):
+            if lower <= area <= upper:
+                lower_val = method_table[lower]
+                upper_val = method_table[upper]
+                if upper == lower:
+                    return lower_val
+                ratio = (area - lower) / (upper - lower)
+                return lower_val + ratio * (upper_val - lower_val)
+
+        return None
+
+    def _calculate_line_impedance(
+        self, conductor: str, insulation_temp: float, area: float, laying: str
+    ) -> tuple[float, float]:
+        rho_20 = self.RESISTIVITY_20.get(conductor)
+        alpha = self.TEMP_COEFF.get(conductor)
+        if rho_20 is None or alpha is None:
+            return 0.0, self.REACTANCE_PER_KM.get(laying, self.REACTANCE_PER_KM["default"])
+
+        rho_theta = rho_20 * (1.0 + alpha * (insulation_temp - 20.0))
+        if area <= 0:
+            r_per_km = 0.0
+        else:
+            r_per_km = (rho_theta / area) * 1000.0
+
+        x_per_km = self.REACTANCE_PER_KM.get(laying, self.REACTANCE_PER_KM["default"])
+        return r_per_km, x_per_km
+
     def _update_pj_display(self, *_: object) -> None:
         pi = self._try_parse_float(self._form_values["Pi, W"].get())
         kj = self._try_parse_float(self._form_values["Kj"].get())
@@ -187,7 +488,7 @@ class CableCalcApp(tk.Tk):
         strujni_krug = self._form_values["Strujni krug"].get().strip()
         od = self._form_values["Deonica OD"].get().strip()
         do = self._form_values["Deonica DO"].get().strip()
-        insulation = self._form_values["Tip-IZOLACIJE"].get()
+        insulation_label = self._form_values["Tip-IZOLACIJE"].get()
         conductor = self._form_values["Tip-PROVODNIKA"].get()
         cable = self._form_values["Oznaka-tip-KABLA"].get().strip()
 
@@ -199,6 +500,12 @@ class CableCalcApp(tk.Tk):
             return
         cos_phi = self._parse_float(self._form_values["cos φ"].get(), "cos φ")
         if cos_phi is None:
+            return
+        if cos_phi <= 0 or abs(cos_phi) > 1:
+            messagebox.showerror(
+                "Ошибка ввода",
+                "Поле 'cos φ' должно содержать значение от 0 (исключительно) до 1.",
+            )
             return
         length = self._parse_float(self._form_values["Dužina L, m"].get(), "Dužina L, m")
         if length is None:
@@ -221,32 +528,56 @@ class CableCalcApp(tk.Tk):
         voltage = self._form_values["U"].get()
         drop_key = self._form_values["Ключ ΔU"].get()
 
+        insulation_meta = self.INSULATION_META.get(insulation_label)
+        if insulation_meta is None:
+            messagebox.showerror("Ошибка", "Не удалось определить параметры изоляции.")
+            return
+
         pj = pi * kj
         self._form_values["Pj"].set(f"{pj:.2f}")
 
         voltage_value = int(voltage)
         if voltage_value == 230:
-            icalc = pi / (voltage_value * cos_phi)
+            icalc = pj / (voltage_value * cos_phi)
+            phase_factor = 2.0
         else:
             icalc = pj / (math.sqrt(3) * voltage_value * cos_phi)
+            phase_factor = math.sqrt(3)
 
-        gamma = 56 if conductor == "Cu" else 34
-        if voltage_value == 400:
-            delta_u = (100.0 * length * pj) / (gamma * area * voltage_value**2)
-        else:
-            delta_u = (200.0 * length * pj) / (gamma * area * voltage_value**2)
+        r_per_km, x_per_km = self._calculate_line_impedance(conductor, insulation_meta["theta"], area, laying)
+        r_per_meter = r_per_km / 1000.0
+        x_per_meter = x_per_km / 1000.0
+
+        sin_phi = math.sqrt(max(0.0, 1.0 - min(cos_phi, 1.0) ** 2))
+        impedance_drop = r_per_meter * cos_phi + x_per_meter * sin_phi
+        delta_u = phase_factor * icalc * impedance_drop * length * 100.0 / voltage_value
 
         limit_delta = self.DROP_LIMIT_KEYS.get(drop_key, 0.0)
         drop_ok = "OK" if delta_u <= limit_delta else "NE"
 
-        iz_value = ""
-        ampacity_ok = "N/A"
+        base_ampacity = self._lookup_ampacity(insulation_meta["key"], conductor, laying, area)
+        if base_ampacity is None:
+            messagebox.showwarning(
+                "Предупреждение",
+                "Для выбранной комбинации изоляции, проводника и способа прокладки нет табличных данных IEC 60364.\n"
+                "Проверка по току пропущена.",
+            )
+            iz_numeric = None
+        else:
+            iz_numeric = base_ampacity * s_coeff * t_coeff * u_coeff
+
+        if iz_numeric is not None:
+            ampacity_ok = "OK" if icalc <= iz_numeric else "NE"
+            iz_display = f"{iz_numeric:.2f}"
+        else:
+            ampacity_ok = "N/A"
+            iz_display = ""
 
         row_data = {
             "Strujni krug": strujni_krug,
             "OD": od,
             "DO": do,
-            "E": insulation,
+            "E": insulation_label,
             "F": conductor,
             "G": cable,
             "Pi": f"{pi:.2f}",
@@ -261,8 +592,8 @@ class CableCalcApp(tk.Tk):
             "T": f"{t_coeff:.2f}",
             "Ucf": f"{u_coeff:.2f}",
             "Icalc [A]": f"{icalc:.3f}",
-            "R_base [A]": "",
-            "Iz [A]": iz_value,
+            "R_base [Ω/km]": f"{r_per_km:.3f}",
+            "Iz [A]": iz_display,
             "ΔU %": f"{delta_u:.2f}",
             "Limit ΔU %": f"{limit_delta:.2f}",
             "По току": ampacity_ok,
