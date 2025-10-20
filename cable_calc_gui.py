@@ -324,16 +324,16 @@ class CableCalcApp(tk.Tk):
         self.config(menu=menubar)
 
     def _build_layout(self) -> None:
-        container = ttk.Panedwindow(self, orient=tk.HORIZONTAL)
+        container = ttk.Frame(self)
         container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        form_frame = ttk.Frame(container)
+        form_frame = ttk.LabelFrame(container, text="Ввод данных")
+        form_frame.pack(fill=tk.X, expand=False, side=tk.TOP, pady=(0, 10))
         self._build_form(form_frame)
-        container.add(form_frame, weight=1)
 
-        table_frame = ttk.Frame(container)
+        table_frame = ttk.LabelFrame(container, text="Результаты расчёта")
+        table_frame.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
         self._build_table(table_frame)
-        container.add(table_frame, weight=3)
 
     def _build_form(self, parent: ttk.Frame) -> None:
         field_specs = [
@@ -358,10 +358,23 @@ class CableCalcApp(tk.Tk):
         ]
 
         grid = ttk.Frame(parent)
-        grid.pack(fill=tk.BOTH, expand=True)
+        grid.pack(fill=tk.X, expand=False, padx=10, pady=10)
 
-        for row, (label, default) in enumerate(field_specs):
-            ttk.Label(grid, text=label).grid(row=row, column=0, sticky=tk.W, pady=3, padx=(0, 8))
+        columns = 3
+        rows_per_column = math.ceil(len(field_specs) / columns)
+
+        entry_columns = [col * 2 + 1 for col in range(columns)]
+        for col in range(columns * 2):
+            weight = 1 if col in entry_columns else 0
+            grid.columnconfigure(col, weight=weight)
+
+        for index, (label, default) in enumerate(field_specs):
+            column = index // rows_per_column
+            row = index % rows_per_column
+            label_col = column * 2
+            entry_col = label_col + 1
+
+            ttk.Label(grid, text=label).grid(row=row, column=label_col, sticky=tk.W, pady=4, padx=(0, 8))
 
             var = tk.StringVar(value=default)
             self._form_values[label] = var
@@ -383,8 +396,7 @@ class CableCalcApp(tk.Tk):
             else:
                 widget = ttk.Entry(grid, textvariable=var)
 
-            widget.grid(row=row, column=1, sticky=tk.EW, pady=3)
-            grid.columnconfigure(1, weight=1)
+            widget.grid(row=row, column=entry_col, sticky=tk.EW, pady=4)
 
         pi_var = self._form_values["Pi, W"]
         kj_var = self._form_values["Kj"]
