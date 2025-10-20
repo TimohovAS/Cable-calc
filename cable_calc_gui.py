@@ -414,18 +414,28 @@ class CableCalcApp(tk.Tk):
 
     def _build_table(self, parent: ttk.Frame) -> None:
         columns = self.TREE_COLUMNS
-        tree = ttk.Treeview(parent, columns=columns, show="headings")
+
+        tree_container = ttk.Frame(parent)
+        tree_container.pack(fill=tk.BOTH, expand=True)
+        tree_container.columnconfigure(0, weight=1)
+        tree_container.rowconfigure(0, weight=1)
+
+        tree = ttk.Treeview(tree_container, columns=columns, show="headings")
         self.tree = tree
 
         for col in columns:
             tree.heading(col, text=col)
             tree.column(col, width=120, anchor=tk.CENTER)
 
-        tree.pack(fill=tk.BOTH, expand=True)
+        tree.grid(row=0, column=0, sticky=tk.NSEW)
 
-        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        v_scroll = ttk.Scrollbar(tree_container, orient=tk.VERTICAL, command=tree.yview)
+        v_scroll.grid(row=0, column=1, sticky=tk.NS)
+
+        h_scroll = ttk.Scrollbar(tree_container, orient=tk.HORIZONTAL, command=tree.xview)
+        h_scroll.grid(row=1, column=0, sticky=tk.EW)
+
+        tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
 
     def _try_parse_float(self, value: str) -> float | None:
         value = value.strip().replace(",", ".")
