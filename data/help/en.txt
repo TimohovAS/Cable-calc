@@ -14,10 +14,10 @@ Main Features:
 Coefficients and Parameters:
 - S (Kn): grouping factor; option to include parallel n∥.
 - T (Kt): temperature factor (air/soil) from IEC tables.
-- η: efficiency (0;1].
+- η: efficiency (0;1).
 - Kj: demand factor.
 - ΔU limits: UIDM 5%, SVDM 3%, SVTS 5%, UITS 8%.
-- cos φ: power factor (0;1].
+- cos φ: power factor (0;1).
 - In, k: protective device ratings; I2/In ratio.
 - ϭ: specific conductivity (m/Ω·mm²) = 1/ρ.
 - n∥: number of parallel cables.

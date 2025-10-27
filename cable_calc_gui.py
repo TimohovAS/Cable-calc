@@ -66,441 +66,21 @@ class CableCalcApp(tk.Tk):
     WINDOW_GEOMETRY = "1200x800"
     DEFAULT_LANGUAGE = "ru"
 
+    # String constants to avoid duplication
+    CIRCUIT_KEY = "Strujni krug"
+    PI_KEY = "Pi"
+    DELTA_U_KEY = "ΔU %"
+    BY_CURRENT_KEY = "По току"
+    BY_DELTA_U_KEY = "По ΔU"
+    PROTECTION_KEY = "Защита"
+    ICALC_KEY = "Icalc [A]"
+    TOTAL_DELTA_U_KEY = "Ukupni ΔU %"
 
     LANGUAGES = {"ru": "Русский", "sr": "Srpski", "en": "English"}
     DEFAULT_MEDIUM = "air"
 
-    TRANSLATIONS = {
-        "app.title": {"ru": "Расчёт кабелей", "sr": "Proračun kablova", "en": "Cable calculation"},
-        "menu.file": {"ru": "Файл", "sr": "Datoteka", "en": "File"},
-        "menu.language": {"ru": "Язык", "sr": "Jezik", "en": "Language"},
-        "menu.save_project": {"ru": "Сохранить проект…", "sr": "Sačuvaj projekat…", "en": "Save project…"},
-        "menu.load_project": {"ru": "Загрузить проект…", "sr": "Učitaj projekat…", "en": "Load project…"},
-        "menu.export_excel": {"ru": "Экспорт в Excel…", "sr": "Izvoz u Excel…", "en": "Export to Excel…"},
-        "tab.calculation": {"ru": "Расчёт", "sr": "Proračun", "en": "Calculation"},
-        "tab.help": {"ru": "Помощь", "sr": "Pomoć", "en": "Help"},
-        "frame.input": {"ru": "Ввод данных", "sr": "Unos podataka", "en": "Input"},
-        "frame.intermediate": {"ru": "Промежуточные результаты", "sr": "Međurezultati", "en": "Intermediate results"},
-        "frame.table": {"ru": "Результаты расчёта", "sr": "Rezultati proračuna", "en": "Calculation results"},
-        "button.add_row": {
-            "ru": "Рассчитать и добавить строку",
-            "sr": "Izračunaj i dodaj red",
-            "en": "Calculate and add row",
-        },
-        "button.clear": {"ru": "Очистить список", "sr": "Očisti listu", "en": "Clear list"},
-        "button.select_optimal": {
-            "ru": "Подобрать параметры",
-            "sr": "Odaberi parametre",
-            "en": "Select parameters",
-        },
-        "button.remove_row": {
-            "ru": "Удалить выбранную строку",
-            "sr": "Obriši izabrani red",
-            "en": "Remove selected row",
-        },
-        "button.load_row": {
-            "ru": "Загрузить строку в форму",
-            "sr": "Učitaj red u formu",
-            "en": "Load row into form",
-        },
-        "label.circuit": {"ru": "Цепь", "sr": "Strujni krug", "en": "Circuit"},
-        "label.segment_from": {"ru": "Участок ОТ", "sr": "Deonica OD", "en": "Segment from"},
-        "label.segment_to": {"ru": "Участок ДО", "sr": "Deonica DO", "en": "Segment to"},
-        "label.insulation": {"ru": "Тип изоляции", "sr": "Tip izolacije", "en": "Insulation type"},
-        "label.conductor": {"ru": "Тип проводника", "sr": "Tip provodnika", "en": "Conductor type"},
-        "label.cable": {"ru": "Марка/тип кабеля", "sr": "Oznaka/tip kabla", "en": "Cable designation"},
-        "label.pi": {"ru": "Pi, Вт", "sr": "Pi, W", "en": "Pi, W"},
-        "label.kj": {"ru": "Kj", "sr": "Kj", "en": "Kj"},
-        "label.eta": {"ru": "η", "sr": "η", "en": "η"},
-        "label.pj": {"ru": "Pj", "sr": "Pj", "en": "Pj"},
-        "label.voltage": {"ru": "U, В", "sr": "U", "en": "U"},
-        "label.cos_phi": {"ru": "cos φ", "sr": "cos φ", "en": "cos φ"},
-        "label.length": {"ru": "Длина L, м", "sr": "Dužina L, m", "en": "Length L, m"},
-        "label.area": {"ru": "Сечение, мм²", "sr": "Presek, mm²", "en": "Cross-section, mm²"},
-        "label.installation": {"ru": "Способ прокладки", "sr": "Način polaganja", "en": "Installation method"},
-        "label.loaded_cores": {
-            "ru": "Нагруженные жилы (nž)",
-            "sr": "Broj opterećenih žila (nž)",
-            "en": "Loaded cores (nž)",
-        },
-        "label.circuits": {
-            "ru": "Кабелей в группе (для S)",
-            "sr": "Broj kablova u grupi (za S)",
-            "en": "Cables in group (for S)",
-        },
-        "label.parallel": {
-            "ru": "Параллельные кабели (n∥)",
-            "sr": "Paralelni kablovi (n∥)",
-            "en": "Parallel cables (n∥)",
-        },
-        "checkbox.consider_parallel": {
-            "ru": "Учитывать n∥ в S",
-            "sr": "Uvažavaj n∥ u S",
-            "en": "Include n∥ in S",
-        },
-        "label.medium": {"ru": "Среда для T", "sr": "Okruženje za T", "en": "Medium for T"},
-        "label.temperature": {"ru": "Температура, °C", "sr": "Temperatura, °C", "en": "Temperature, °C"},
-        "label.s": {"ru": "S", "sr": "S", "en": "S"},
-        "label.t": {"ru": "T", "sr": "T", "en": "T"},
-        "label.in": {"ru": "In, A", "sr": "In, A", "en": "In, A"},
-        "label.k": {"ru": "k", "sr": "k", "en": "k"},
-        "label.drop_key": {"ru": "Ключ ΔU", "sr": "Ključ ΔU", "en": "ΔU key"},
-        "label.result.pj": {"ru": "Pj, Вт", "sr": "Pj, W", "en": "Pj, W"},
-        "label.result.icalc": {"ru": "Icalc [A]", "sr": "Icalc [A]", "en": "Icalc [A]"},
-        "label.result.rbase": {"ru": "R_base [Ω/км]", "sr": "R_base [Ω/km]", "en": "R_base [Ω/km]"},
-        "label.result.iz": {"ru": "Iz [A]", "sr": "Iz [A]", "en": "Iz [A]"},
-        "label.result.s": {"ru": "S", "sr": "S", "en": "S"},
-        "label.result.t": {"ru": "T", "sr": "T", "en": "T"},
-        "label.result.delta": {"ru": "ΔU %", "sr": "ΔU %", "en": "ΔU %"},
-        "label.result.total_delta": {"ru": "Суммарный ΔU %", "sr": "Ukupni ΔU %", "en": "Total ΔU %"},
-        "label.result.limit_delta": {"ru": "Предел ΔU %", "sr": "Limit ΔU %", "en": "Limit ΔU %"},
-        "label.result.ampacity": {"ru": "По току", "sr": "Po struji", "en": "By current"},
-        "label.result.drop": {"ru": "По ΔU", "sr": "Po ΔU", "en": "By ΔU"},
-        "label.result.in_range": {
-            "ru": "Диапазон In [A]",
-            "sr": "Opseg In [A]",
-            "en": "In range [A]",
-        },
-        "label.result.i2": {"ru": "I2 [A]", "sr": "I2 [A]", "en": "I2 [A]"},
-        "label.result.protection": {"ru": "Защита", "sr": "Zaštita", "en": "Protection"},
-        "label.result.compatibility": {
-            "ru": "Соответствие IEC",
-            "sr": "IEC kompatibilnost",
-            "en": "IEC compatibility",
-        },
-        "label.result.recommendations": {
-            "ru": "Рекомендации",
-            "sr": "Preporuke",
-            "en": "Recommendations",
-        },
-        "dialog.recommendations.title": {
-            "ru": "Рекомендации по подбору",
-            "sr": "Preporuke za izbor",
-            "en": "Selection recommendations",
-        },
-        "column.circuit": {"ru": "Цепь", "sr": "Strujni krug", "en": "Circuit"},
-        "column.from": {"ru": "От", "sr": "OD", "en": "From"},
-        "column.to": {"ru": "До", "sr": "DO", "en": "To"},
-        "column.insulation": {"ru": "Изоляция", "sr": "E", "en": "E"},
-        "column.conductor": {"ru": "Проводник", "sr": "F", "en": "F"},
-        "column.cable": {"ru": "Кабель", "sr": "G", "en": "G"},
-        "column.cores": {"ru": "nž", "sr": "nž", "en": "nž"},
-        "column.n_parallel": {"ru": "n∥", "sr": "n∥", "en": "n∥"},
-        "column.group_for_s": {"ru": "Кабелей в группе (S)", "sr": "Kablovi u grupi (S)", "en": "Group cables (S)"},
-        "column.pi": {"ru": "Pi", "sr": "Pi", "en": "Pi"},
-        "column.kj": {"ru": "Kj", "sr": "Kj", "en": "Kj"},
-        "column.eta": {"ru": "η", "sr": "η", "en": "η"},
-        "column.pj": {"ru": "Pj", "sr": "Pj", "en": "Pj"},
-        "column.voltage": {"ru": "U", "sr": "U", "en": "U"},
-        "column.cos": {"ru": "cosφ", "sr": "cosφ", "en": "cosφ"},
-        "column.length": {"ru": "L", "sr": "L", "en": "L"},
-        "column.area": {"ru": "Сечение", "sr": "Presek", "en": "Area"},
-        "column.installation": {"ru": "Способ прокладки", "sr": "Način polaganja", "en": "Installation"},
-        "column.s": {"ru": "S", "sr": "S", "en": "S"},
-        "column.t": {"ru": "T", "sr": "T", "en": "T"},
-        "column.in": {"ru": "In [A]", "sr": "In [A]", "en": "In [A]"},
-        "column.k": {"ru": "k", "sr": "k", "en": "k"},
-        "column.i2": {"ru": "I2 [A]", "sr": "I2 [A]", "en": "I2 [A]"},
-        "column.icalc": {"ru": "Icalc [A]", "sr": "Icalc [A]", "en": "Icalc [A]"},
-        "column.rbase": {"ru": "R_base [Ω/км]", "sr": "R_base [Ω/km]", "en": "R_base [Ω/km]"},
-        "column.iz": {"ru": "Iz [A]", "sr": "Iz [A]", "en": "Iz [A]"},
-        "column.drop": {"ru": "ΔU %", "sr": "ΔU %", "en": "ΔU %"},
-        "column.total_drop": {"ru": "Суммарный ΔU %", "sr": "Ukupni ΔU %", "en": "Total ΔU %"},
-        "column.limit_drop": {"ru": "Предел ΔU %", "sr": "Limit ΔU %", "en": "Limit ΔU %"},
-        "column.ampacity": {"ru": "По току", "sr": "Po struji", "en": "By current"},
-        "column.drop_status": {"ru": "По ΔU", "sr": "Po ΔU", "en": "By ΔU"},
-        "column.protection": {"ru": "Защита", "sr": "Zaštita", "en": "Protection"},
-        "column.key": {"ru": "Ключ", "sr": "Ključ", "en": "Key"},
-        "column.compatibility": {"ru": "Соответствие IEC", "sr": "IEC kompatibilnost", "en": "IEC compatibility"},
-        "column.medium": {"ru": "Среда", "sr": "Okruženje", "en": "Medium"},
-        "column.limit": {"ru": "Предел ΔU %", "sr": "Limit ΔU %", "en": "Limit ΔU %"},
-        "column.sigma": {"ru": "ϭ", "sr": "ϭ", "en": "ϭ"},
-        "status.ok": {"ru": "OK", "sr": "OK", "en": "OK"},
-        "status.fail": {"ru": "НЕТ", "sr": "NE", "en": "NO"},
-        "status.na": {"ru": "Н/Д", "sr": "N/A", "en": "N/A"},
-        "status.no_data": {"ru": "Нет данных", "sr": "Nema podataka", "en": "No data"},
-        "warning.voltage_phase": {
-            "ru": "При U=230 В трёхфазное подключение (nž=3) недопустимо. Выберите U=400 В или измените число жил.",
-            "sr": "Za U=230 V trofazna veza (nž=3) nije dozvoljena. Odaberite U=400 V ili promenite broj žila.",
-            "en": "At 230 V a three-phase setup (nž=3) is invalid. Choose 400 V or change the loaded cores.",
-        },
-        "message.select_fail": {
-            "ru": "Не удалось подобрать параметры. Возможные варианты:\n",
-            "sr": "Nije moguće pronaći parametre. Moguće opcije:\n",
-            "en": "Unable to find suitable parameters. Possible options:\n",
-        },
-    }
-
-    TOOLTIPS = {
-        "label.circuit": {
-            "ru": "Имя или номер цепи, используется для суммирования падений напряжения.",
-            "sr": "Naziv ili broj kruga koji se koristi za sumiranje pada napona.",
-            "en": "Circuit name or number used when summing voltage drop.",
-        },
-        "label.segment_from": {
-            "ru": "Начальная точка рассматриваемой кабельной линии.",
-            "sr": "Početna tačka posmatrane deonice kabla.",
-            "en": "Start point of the cable segment.",
-        },
-        "label.segment_to": {
-            "ru": "Конечная точка рассматриваемой кабельной линии.",
-            "sr": "Krajnja tačka posmatrane deonice kabla.",
-            "en": "End point of the cable segment.",
-        },
-        "label.insulation": {
-            "ru": "Выберите тип изоляции кабеля согласно IEC 60364.",
-            "sr": "Odaberite tip izolacije kabla prema IEC 60364.",
-            "en": "Select the cable insulation type according to IEC 60364.",
-        },
-        "label.conductor": {
-            "ru": "Материал токопроводящей жилы (медь или алюминий).",
-            "sr": "Materijal provodnika (bakar ili aluminijum).",
-            "en": "Conductor material (copper or aluminium).",
-        },
-        "label.cable": {
-            "ru": "Заводская маркировка или описание кабеля.",
-            "sr": "Fabricka oznaka ili opis kabla.",
-            "en": "Factory designation or description of the cable.",
-        },
-        "label.pi": {
-            "ru": "Номинальная мощность нагрузки в ваттах.",
-            "sr": "Nazivna snaga opterećenja u vatima.",
-            "en": "Rated load power in watts.",
-        },
-        "label.kj": {
-            "ru": "Коэффициент спроса (одновременности) для группы потребителей.",
-            "sr": "Koeficijent istovremenosti za grupu potrošača.",
-            "en": "Demand (diversity) factor for the load group.",
-        },
-        "label.eta": {
-            "ru": "КПД установки. Должен быть в диапазоне (0;1].",
-            "sr": "Efikasnost sistema. Mora biti u opsegu (0;1].",
-            "en": "System efficiency. Must be within (0, 1].",
-        },
-        "label.pj": {
-            "ru": "Рассчитанная активная мощность Pi × Kj.",
-            "sr": "Izračunata aktivna snaga Pi × Kj.",
-            "en": "Calculated active power Pi × Kj.",
-        },
-        "label.voltage": {
-            "ru": "Номинальное напряжение питающей сети.",
-            "sr": "Nazivni napon mreže.",
-            "en": "Nominal system voltage.",
-        },
-        "label.cos_phi": {
-            "ru": "Коэффициент мощности нагрузки.",
-            "sr": "Faktor snage opterećenja.",
-            "en": "Load power factor.",
-        },
-        "label.length": {
-            "ru": "Длина рассматриваемого участка кабеля в метрах.",
-            "sr": "Dužina posmatrane deonice kabla u metrima.",
-            "en": "Length of the analysed cable section in metres.",
-        },
-        "label.area": {
-            "ru": "Выбранное сечение жилы кабеля.",
-            "sr": "Odabrani presek provodnika.",
-            "en": "Selected conductor cross-section.",
-        },
-        "label.installation": {
-            "ru": "Метод прокладки кабеля по IEC 60364.",
-            "sr": "Metod polaganja kabla prema IEC 60364.",
-            "en": "Cable installation method per IEC 60364.",
-        },
-        "label.loaded_cores": {
-            "ru": "Число нагруженных жил (2 для 1ф, 3 для 3ф систем).",
-            "sr": "Broj opterećenih žila (2 za jednofazne, 3 za trofazne sisteme).",
-            "en": "Number of loaded cores (2 for single-phase, 3 for three-phase).",
-        },
-        "label.circuits": {
-            "ru": "Количество соседних кабелей в одной трассе. Влияет на коэффициент S. Ток не делится.",
-            "sr": "Broj susednih kablova u istoj trasi. Utice na koeficijent S. Struja se ne deli.",
-            "en": "Number of adjacent cables in one route. Affects grouping factor S. Current does not split.",
-        },
-        "label.parallel": {
-            "ru": "Число одинаковых кабелей, подключённых параллельно к одной нагрузке. Делят ток и уменьшают падение напряжения ~ пропорционально 1/n∥.",
-            "sr": "Broj identičnih kablova spojenih paralelno na jedno opterećenje. Dele struju i smanjuju pad napona približno ~1/n∥.",
-            "en": "Number of identical cables connected in parallel to one load. Split the current and reduce voltage drop roughly ~1/n∥.",
-        },
-        "checkbox.consider_parallel": {
-            "ru": "Включает параллельные кабели в расчёт коэффициента группировки S (Kn).",
-            "sr": "Uključuje paralelne kablove u proračun faktora grupisanja S (Kn).",
-            "en": "Includes parallel cables when evaluating grouping factor S (Kn).",
-        },
-        "label.medium": {
-            "ru": "Среда для температурного коэффициента (воздух или грунт).",
-            "sr": "Okruženje za temperaturni koeficijent (vazduh ili tlo).",
-            "en": "Environment for the temperature factor (air or soil).",
-        },
-        "label.temperature": {
-            "ru": "Фактическая температура окружающей среды.",
-            "sr": "Stvarna temperatura okruženja.",
-            "en": "Actual ambient temperature.",
-        },
-        "label.s": {
-            "ru": "Коэффициент группировки Kn. Рассчитывается автоматически.",
-            "sr": "Koeficijent grupisanja Kn. Računa se automatski.",
-            "en": "Grouping factor Kn. Calculated automatically.",
-        },
-        "label.t": {
-            "ru": "Температурный коэффициент Kt. Рассчитывается автоматически.",
-            "sr": "Temperaturni koeficijent Kt. Računa se automatski.",
-            "en": "Temperature factor Kt. Calculated automatically.",
-        },
-        "label.in": {
-            "ru": "Номинальный ток защитного устройства.",
-            "sr": "Nazivna struja zaštitnog uređaja.",
-            "en": "Rated current of the protective device.",
-        },
-        "label.k": {
-            "ru": "Коэффициент надежного срабатывания (I2/In).",
-            "sr": "Koeficijent pouzdanog delovanja (I2/In).",
-            "en": "Tripping reliability factor (I2/In).",
-        },
-        "label.drop_key": {
-            "ru": "Допустимое падение напряжения по IEC 60364.",
-            "sr": "Dozvoljeni pad napona prema IEC 60364.",
-            "en": "Allowed voltage drop per IEC 60364.",
-        },
-    }
-
-    HELP_TEXTS = {
-    "ru": """Руководство по программе расчета кабелей (IEC 60364):\n\n
-**Общее описание**:\n
-Программа предназначена для расчета параметров кабельных линий согласно стандарту IEC 60364-5-52. Она позволяет определить допустимый ток (Iz), падение напряжения (ΔU), подобрать сечение кабеля и параметры защитного устройства, а также проверить соответствие требованиям IEC 60364-4-43. Поддерживаются медные (Cu) и алюминиевые (Al) проводники, изоляция PVC и XLPE/EPR, а также различные методы прокладки (A1, A2, B1, B2, C, D, E, F, G).\n\n
-**Основные функции**:\n
-- **Расчет параметров**: Вводите данные (мощность, напряжение, длина, сечение, и т.д.) для расчета тока нагрузки (Icalc), допустимого тока (Iz), падения напряжения (ΔU) и кумулятивного падения напряжения (Ukupni ΔU %).\n
-- **Проверка защиты**: Проверяет соответствие номинального тока защиты (In) и тока срабатывания (I2) требованиям: Icalc ≤ In ≤ Iz и I2 ≤ 1.45 × Iz.\n
-- **Автоматический подбор параметров**: Кнопка "Подобрать параметры" выбирает минимальное сечение и номинальный ток защиты (In), соответствующие требованиям по току и ΔU.\n
-- **Редактирование и удаление**: Используйте кнопки "Загрузить строку в форму" и "Удалить выбранную строку" для редактирования или удаления записей в таблице результатов.\n
-- **Экспорт и сохранение**: Сохраняйте проект в JSON ("Сохранить проект") и экспортируйте результаты в Excel ("Экспорт в Excel") с автофильтром и форматированием.\n
-- **Локализация**: Поддержка русского, сербского и английского языков через меню "Язык".\n\n
-**Коэффициенты и параметры**:\n
-- **S (Kn)**: Коэффициент группировки, учитывающий взаимное нагревание кабелей. Рассчитывается автоматически на основе числа кабелей в группе. Если включен флажок "Учитывать n∥ в S", параллельные кабели (n∥) добавляются к числу кабелей в группе.\n
-- **T (Kt)**: Температурный коэффициент для воздуха или грунта, выбирается автоматически из таблиц IEC 60364-5-52.\n
-- **η**: КПД установки, должен быть в диапазоне (0;1]. Определяется по паспорту оборудования.\n
-- **Kj**: Коэффициент спроса (одновременности) для группы потребителей.\n
-- **ΔU**: Допустимое падение напряжения, определяется ключом (UIDM: 5%, SVDM: 3%, SVTS: 5%, UITS: 8%).\n
-- **cos φ**: Коэффициент мощности нагрузки, должен быть в диапазоне (0;1].\n
-- **In, k**: Параметры защитного устройства: номинальный ток (In) и коэффициент срабатывания (I2/In).\n
-- **ϭ**: Специфическая проводимость проводника (м/Ω·мм²), рассчитывается как 1/ρ, где ρ — удельное сопротивление при 20°C.\n
-- **n∥**: Число параллельных кабелей, делящих ток нагрузки (Icalc/n∥) и уменьшающих сопротивление (R/n∥, X/n∥).\n\n
-**Методы прокладки (IEC 60364-5-52)**:\n
-- **A1**: Многожильные кабели в трубе, проложенной в теплоизолированной стене (низкая теплопроводность).\n
-- **A2**: Многожильные кабели в трубе, проложенной в обычной стене или кладке (высокая теплопроводность).\n
-- **B1**: Одножильные кабели в трубе, проложенной в теплоизолированной стене.\n
-- **B2**: Одножильные кабели в трубе, проложенной в обычной стене или кладке.\n
-- **C**: Многожильные или одножильные кабели на поверхности (например, на стене или потолке) без труб.\n
-- **D**: Кабели, проложенные в грунте (в траншее или трубе под землёй).\n
-- **E**: Многожильные кабели в свободном воздухе (на открытой трассе, без касания поверхностей).\n
-- **F**: Одножильные кабели в свободном воздухе, с расстоянием между кабелями не менее диаметра.\n
-- **G**: Одножильные кабели в свободном воздухе, с минимальным расстоянием или касанием друг друга.\n\n
-**Инструкции по использованию**:\n
-1. Заполните поля ввода: укажите цепь, мощность (Pi), Kj, η, напряжение (U), cos φ, длину (L), сечение, метод прокладки, число жил (nž), и т.д.\n
-2. Убедитесь, что U=230 В используется только с nж=2 (однофазная система), а U=400 В — с nж=3 (трёхфазная).\n
-3. Выберите метод прокладки в соответствии с условиями установки (например, D для грунта, C для поверхностной прокладки).\n
-4. Используйте "Подобрать параметры" для автоматического выбора сечения и In.\n
-5. Нажмите "Рассчитать и добавить строку", чтобы сохранить результат в таблице.\n
-6. Проверьте "Совместимость IEC": должно быть "OK" для соответствия стандарту.\n
-7. При необходимости отредактируйте строку через "Загрузить строку в форму" или удалите через "Удалить выбранную строку".\n
-8. Сохраните проект или экспортируйте результаты в Excel.\n\n
-**Замечания**:\n
-- Если температура выходит за пределы таблиц IEC, программа выдаст предупреждение.\n
-- При несоответствии по току (Icalc > Iz) или ΔU программа предложит рекомендации.\n
-- Проверяйте корректность ввода, чтобы избежать ошибок в расчетах.\n
-- Выбор метода прокладки существенно влияет на допустимый ток (Iz). Используйте справку для выбора подходящего метода.\n""",
-    "sr": """Uputstvo za program za proračun kablova (IEC 60364):\n\n
-**Opšti opis**:\n
-Program je namenjen za proračun parametara kablovskih linija prema standardu IEC 60364-5-52. Omogućava određivanje dopustive struje (Iz), pada napona (ΔU), odabir preseka kabla i parametara zaštitnog uređaja, kao i proveru usaglašenosti sa zahtevima IEC 60364-4-43. Podržava bakarne (Cu) i aluminijumske (Al) provodnike, izolaciju PVC i XLPE/EPR, i različite metode polaganja (A1, A2, B1, B2, C, D, E, F, G).\n\n
-**Glavne funkcije**:\n
-- **Proračun parametara**: Unesite podatke (snaga, napon, dužina, presek, itd.) za izračunavanje struje opterećenja (Icalc), dopustive struje (Iz), pada napona (ΔU) i ukupnog pada napona (Ukupni ΔU %).\n
-- **Provera zaštite**: Proverava usaglašenost nazivne struje zaštite (In) i struje okidanja (I2) sa uslovima: Icalc ≤ In ≤ Iz i I2 ≤ 1.45 × Iz.\n
-- **Automatski odabir parametara**: Dugme "Odaberi parametre" bira minimalni presek i nazivnu struju zaštite (In) koji zadovoljavaju zahteve za struju i ΔU.\n
-- **Uređivanje i brisanje**: Koristite dugmad "Učitaj red u formu" i "Obriši izabrani red" za uređivanje ili uklanjanje unosa u tabeli rezultata.\n
-- **Izvoz i čuvanje**: Sačuvajte projekat u JSON formatu ("Sačuvaj projekat") i izvezite rezultate u Excel ("Izvoz u Excel") sa automatskim filterima i formatiranjem.\n
-- **Lokalizacija**: Podrška za srpski, ruski i engleski jezik putem menija "Jezik".\n\n
-**Koeficijenti i parametri**:\n
-- **S (Kn)**: Koeficijent grupisanja koji uzima u obzir međusobno zagrevanje kablova. Automatski se računa na osnovu broja kablova u grupi. Ako je označeno polje "Uvažavaj n∥ u S", paralelni kablovi (n∥) se dodaju broju kablova u grupi.\n
-- **T (Kt)**: Temperaturni koeficijent za vazduh ili tlo, automatski se bira iz tabela IEC 60364-5-52.\n
-- **η**: Efikasnost postrojenja, mora biti u opsegu (0;1]. Određuje se prema podacima proizvođača.\n
-- **Kj**: Koeficijent istovremenosti za grupu potrošača.\n
-- **ΔU**: Dozvoljeni pad napona, određen ključem (UIDM: 5%, SVDM: 3%, SVTS: 5%, UITS: 8%).\n
-- **cos φ**: Faktor snage opterećenja, mora biti u opsegu (0;1].\n
-- **In, k**: Parametri zaštitnog uređaja: nazivna struja (In) i koeficijent okidanja (I2/In).\n
-- **ϭ**: Specifična provodnost provodnika (m/Ω·mm²), izračunava se kao 1/ρ, gde je ρ specifično otpornost na 20°C.\n
-- **n∥**: Broj paralelnih kablova koji dele struju opterećenja (Icalc/n∥) i smanjuju otpor (R/n∥, X/n∥).\n\n
-**Metode polaganja (IEC 60364-5-52)**:\n
-- **A1**: Višežilni kablovi u cevi, položeni u toplotno izolovani zid (niska toplotna provodljivost).\n
-- **A2**: Višežilni kablovi u cevi, položeni u običan zid ili zidanu konstrukciju (visoka toplotna provodljivost).\n
-- **B1**: Jednožilni kablovi u cevi, položeni u toplotno izolovani zid.\n
-- **B2**: Jednožilni kablovi u cevi, položeni u običan zid ili zidanu konstrukciju.\n
-- **C**: Višežilni ili jednožilni kablovi na površini (npr. na zidu ili plafonu) bez cevi.\n
-- **D**: Kablovi položeni u tlo (u rovu ili cevi ispod zemlje).\n
-- **E**: Višežilni kablovi na slobodnom vazduhu (na otvorenoj trasi, bez dodira sa površinama).\n
-- **F**: Jednožilni kablovi na slobodnom vazduhu, sa razmakom između kablova najmanje jednog prečnika.\n
-- **G**: Jednožilni kablovi na slobodnom vazduhu, sa minimalnim razmakom ili u dodiru jedan s drugim.\n\n
-**Uputstvo za korišćenje**:\n
-1. Popunite polja za unos: unesite krug, snagu (Pi), Kj, η, napon (U), cos φ, dužinu (L), presek, metod polaganja, broj žila (nž), itd.\n
-2. Uverite se da je U=230 V korišćeno samo sa nž=2 (jednofazni sistem), a U=400 V sa nž=3 (trofazni sistem).\n
-3. Odaberite metod polaganja u skladu sa uslovima instalacije (npr. D za tlo, C za površinsko polaganje).\n
-4. Koristite "Odaberi parametre" za automatski izbor preseka i In.\n
-5. Kliknite na "Izračunaj i dodaj red" da biste sačuvali rezultat u tabelu.\n
-6. Proverite "IEC kompatibilnost": treba da bude "OK" za usaglašenost sa standardom.\n
-7. Po potrebi uredite red pomoću "Učitaj red u formu" ili obrišite pomoću "Obriši izabrani red".\n
-8. Sačuvajte projekat ili izvezite rezultate u Excel.\n\n
-**Napomene**:\n
-- Ako temperatura izlazi izvan opsega tabela IEC, program će izdati upozorenje.\n
-- Ako postoji neusaglašenost po struji (Icalc > Iz) ili ΔU, program će predložiti preporuke.\n
-- Proverite ispravnost unosa kako biste izbegli greške u proračunima.\n
-- Izbor metode polaganja značajno utiče na dopustivu struju (Iz). Koristite pomoć za odabir odgovarajuće metode.\n""",
-    "en": """Guide to the Cable Calculation Program (IEC 60364):\n\n
-**Overview**:\n
-This program is designed to calculate cable parameters according to IEC 60364-5-52. It determines the permissible current (Iz), voltage drop (ΔU), selects cable cross-sections and protective device parameters, and verifies compliance with IEC 60364-4-43. It supports copper (Cu) and aluminum (Al) conductors, PVC and XLPE/EPR insulation, and various installation methods (A1, A2, B1, B2, C, D, E, F, G).\n\n
-**Main Features**:\n
-- **Parameter Calculation**: Enter data (power, voltage, length, cross-section, etc.) to calculate load current (Icalc), permissible current (Iz), voltage drop (ΔU), and cumulative voltage drop (Ukupni ΔU %).\n
-- **Protection Check**: Verifies compliance of the protective devices rated current (In) and tripping current (I2) with conditions: Icalc ≤ In ≤ Iz and I2 ≤ 1.45 × Iz.\n
-- **Automatic Parameter Selection**: The "Select parameters" button chooses the minimum cross-section and rated current (In) that meet current and ΔU requirements.\n
-- **Editing and Deletion**: Use the "Load row into form" and "Remove selected row" buttons to edit or delete entries in the results table.\n
-- **Export and Save**: Save the project in JSON ("Save project") and export results to Excel ("Export to Excel") with autofilter and formatting.\n
-- **Localization**: Supports Russian, Serbian, and English languages via the "Language" menu.\n\n
-**Coefficients and Parameters**:\n
-- **S (Kn)**: Grouping factor accounting for mutual heating of cables. Calculated automatically based on the number of cables in a group. If the "Include n∥ in S" checkbox is enabled, parallel cables (n∥) are added to the group count.\n
-- **T (Kt)**: Temperature factor for air or soil, automatically selected from IEC 60364-5-52 tables.\n
-- **η**: Installation efficiency, must be in the range (0;1]. Determined from equipment specifications.\n
-- **Kj**: Demand (diversity) factor for a group of loads.\n
-- **ΔU**: Permissible voltage drop, defined by the key (UIDM: 5%, SVDM: 3%, SVTS: 5%, UITS: 8%).\n
-- **cos φ**: Load power factor, must be in the range (0;1].\n
-- **In, k**: Protective device parameters: rated current (In) and tripping ratio (I2/In).\n
-- **ϭ**: Specific conductivity of the conductor (m/Ω·mm²), calculated as 1/ρ, where ρ is the resistivity at 20°C.\n
-- **n∥**: Number of parallel cables sharing the load current (Icalc/n∥) and reducing resistance (R/n∥, X/n∥).\n\n
-**Installation Methods (IEC 60364-5-52)**:\n
-- **A1**: Multicore cables in conduit within a thermally insulated wall (low thermal conductivity).\n
-- **A2**: Multicore cables in conduit within a normal wall or masonry (high thermal conductivity).\n
-- **B1**: Single-core cables in conduit within a thermally insulated wall.\n
-- **B2**: Single-core cables in conduit within a normal wall or masonry.\n
-- **C**: Multicore or single-core cables on a surface (e.g., on a wall or ceiling) without conduit.\n
-- **D**: Cables buried in the ground (in a trench or conduit underground).\n
-- **E**: Multicore cables in free air (on an open tray, not touching surfaces).\n
-- **F**: Single-core cables in free air, spaced at least one cable diameter apart.\n
-- **G**: Single-core cables in free air, with minimal spacing or touching each other.\n\n
-**Usage Instructions**:\n
-1. Fill in the input fields: specify the circuit, power (Pi), Kj, η, voltage (U), cos φ, length (L), cross-section, installation method, number of cores (nž), etc.\n
-2. Ensure U=230 V is used only with nž=2 (single-phase system), and U=400 V with nž=3 (three-phase system).\n
-3. Select the installation method based on the installation conditions (e.g., D for ground, C for surface mounting).\n
-4. Use "Select parameters" to automatically choose cross-section and In.\n
-5. Click "Calculate and add row" to save the result to the table.\n
-6. Check "IEC compatibility": it should be "OK" for standard compliance.\n
-7. Edit a row using "Load row into form" or delete it with "Remove selected row".\n
-8. Save the project or export results to Excel.\n\n
-**Notes**:\n
-- If the temperature is outside IEC table ranges, a warning will be displayed.\n
-- If there is non-compliance in current (Icalc > Iz) or ΔU, recommendations will be provided.\n
-- Verify input correctness to avoid calculation errors.\n
-- The choice of installation method significantly affects the permissible current (Iz). Use the help to select the appropriate method.\n""",
-}
-
     LABEL_KEY_MAP = {
-        "Strujni krug": "label.circuit",
+        CIRCUIT_KEY: "label.circuit",
         "Deonica OD": "label.segment_from",
         "Deonica DO": "label.segment_to",
         "Tip-IZOLACIJE": "label.insulation",
@@ -535,20 +115,20 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         "Iz [A]": "label.result.iz",
         "S": "label.result.s",
         "T": "label.result.t",
-        "ΔU %": "label.result.delta",
-        "Ukupni ΔU %": "label.result.total_delta",
+        DELTA_U_KEY: "label.result.delta",
+        TOTAL_DELTA_U_KEY: "label.result.total_delta",
         "Limit ΔU %": "label.result.limit_delta",
-        "По току": "label.result.ampacity",
-        "По ΔU": "label.result.drop",
+        BY_CURRENT_KEY: "label.result.ampacity",
+        BY_DELTA_U_KEY: "label.result.drop",
         "Диапазон In [A]": "label.result.in_range",
         "I2 [A]": "label.result.i2",
-        "Защита": "label.result.protection",
+        PROTECTION_KEY: "label.result.protection",
         "Совместимость IEC": "label.result.compatibility",
         "Рекомендации": "label.result.recommendations",
     }
 
     TREE_COLUMN_KEYS = {
-        "Strujni krug": "column.circuit",
+        CIRCUIT_KEY: "column.circuit",
         "OD": "column.from",
         "DO": "column.to",
         "E": "column.insulation",
@@ -557,7 +137,7 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         "nž": "column.cores",
         "n∥": "column.n_parallel",
         "Кабелей в группе (S)": "column.group_for_s",
-        "Pi": "column.pi",
+        PI_KEY: "column.pi",
         "Kj": "column.kj",
         "η": "column.eta",
         "Pj": "column.pj",
@@ -571,461 +151,18 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         "In [A]": "column.in",
         "k": "column.k",
         "I2 [A]": "column.i2",
-        "Icalc [A]": "column.icalc",
+        ICALC_KEY: "column.icalc",
         "R_base [Ω/km]": "column.rbase",
         "ϭ": "column.sigma",
         "Iz [A]": "column.iz",
-        "ΔU %": "column.drop",
-        "Ukupni ΔU %": "column.total_drop",
+        DELTA_U_KEY: "column.drop",
+        TOTAL_DELTA_U_KEY: "column.total_drop",
         "Limit ΔU %": "column.limit_drop",
-        "По току": "column.ampacity",
-        "По ΔU": "column.drop_status",
-        "Защита": "column.protection",
+        BY_CURRENT_KEY: "column.ampacity",
+        BY_DELTA_U_KEY: "column.drop_status",
+        PROTECTION_KEY: "column.protection",
         "Ключ": "column.key",
         "Совместимость IEC": "column.compatibility",
-    }
-
-    INSULATION_OPTIONS = [
-        "PVC (70°C)",
-        "XLPE/EPR (90°C)",
-    ]
-    INSULATION_META = {
-        "PVC (70°C)": {"key": "PVC", "theta": 70},
-        "XLPE/EPR (90°C)": {"key": "XLPE", "theta": 90},
-    }
-
-    CONDUCTOR_TYPES = ["Cu", "Al"]
-    VOLTAGE_LEVELS = ["400", "230"]
-    TEMPERATURE_MEDIA = {
-        "air": {"ru": "Воздух", "sr": "Vazduh", "en": "Air"},
-        "soil": {"ru": "Грунт", "sr": "Tlo", "en": "Soil"},
-    }
-    INSTALLATION_METHODS = ["A1", "A2", "B1", "B2", "C", "D", "E", "F", "G"]
-    STANDARD_SECTIONS = [
-        1.5,
-        2.5,
-        4,
-        6,
-        10,
-        16,
-        25,
-        35,
-        50,
-        70,
-        95,
-        120,
-        150,
-        185,
-        240,
-        300,
-        400,
-        500,
-    ]
-    METHOD_PREFERENCE = ["D", "E", "F", "C", "B2", "B1", "A2", "A1", "G"]
-    STANDARD_CROSS_SECTIONS = [
-        "",
-        "0.5",
-        "0.75",
-        "1",
-        "1.5",
-        "2.5",
-        "4",
-        "6",
-        "10",
-        "16",
-        "25",
-        "35",
-        "50",
-        "70",
-        "95",
-        "120",
-        "150",
-        "185",
-        "240",
-        "300",
-        "400",
-        "500",
-        "630",
-    ]
-    STANDARD_BREAKER_RATINGS = [
-        "",
-        "6",
-        "10",
-        "13",
-        "16",
-        "20",
-        "25",
-        "32",
-        "40",
-        "50",
-        "63",
-        "80",
-        "100",
-        "125",
-        "160",
-        "200",
-        "250",
-        "315",
-        "400",
-        "500",
-        "630",
-    ]
-    DROP_LIMIT_KEYS = {
-        "UIDM": 5.0,
-        "SVDM": 3.0,
-        "SVTS": 5.0,
-        "UITS": 8.0,
-    }
-
-    RESISTIVITY_20 = {"Cu": 0.017241, "Al": 0.028264}
-    TEMP_COEFF = {"Cu": 0.00393, "Al": 0.00403}
-    REACTANCE_PER_KM = {
-        "default": 0.08,
-        "D": 0.09,
-        ("D", "≤95"): 0.09,
-        ("D", "≤240"): 0.085,
-        ("D", ">240"): 0.08,
-        ("C", "≤95"): 0.08,
-        ("C", "≤240"): 0.077,
-        ("C", ">240"): 0.074,
-        ("F", "≤95"): 0.08,
-        ("F", "≤240"): 0.078,
-        ("F", ">240"): 0.075,
-    }
-
-    AMPACITY_BASE = {
-        "A1": {
-            1.5: 17.0,
-            2.5: 23.0,
-            4.0: 30.0,
-            6.0: 38.0,
-            10.0: 52.0,
-            16.0: 69.0,
-            25.0: 89.0,
-            35.0: 110.0,
-            50.0: 132.0,
-            70.0: 168.0,
-            95.0: 202.0,
-            120.0: 231.0,
-            150.0: 265.0,
-            185.0: 301.0,
-            240.0: 352.0,
-            300.0: 395.0,
-            400.0: 450.0,
-            500.0: 500.0,
-        },
-        "A2": {
-            1.5: 18.0,
-            2.5: 24.0,
-            4.0: 32.0,
-            6.0: 40.0,
-            10.0: 54.0,
-            16.0: 72.0,
-            25.0: 94.0,
-            35.0: 117.0,
-            50.0: 141.0,
-            70.0: 179.0,
-            95.0: 216.0,
-            120.0: 249.0,
-            150.0: 285.0,
-            185.0: 324.0,
-            240.0: 380.0,
-            300.0: 425.0,
-            400.0: 490.0,
-            500.0: 550.0,
-        },
-        "B1": {
-            1.5: 19.0,
-            2.5: 26.0,
-            4.0: 34.0,
-            6.0: 44.0,
-            10.0: 60.0,
-            16.0: 76.0,
-            25.0: 101.0,
-            35.0: 123.0,
-            50.0: 146.0,
-            70.0: 185.0,
-            95.0: 225.0,
-            120.0: 260.0,
-            150.0: 300.0,
-            185.0: 344.0,
-            240.0: 404.0,
-            300.0: 460.0,
-            400.0: 525.0,
-            500.0: 590.0,
-        },
-        "B2": {
-            1.5: 21.0,
-            2.5: 28.0,
-            4.0: 37.0,
-            6.0: 48.0,
-            10.0: 65.0,
-            16.0: 84.0,
-            25.0: 110.0,
-            35.0: 135.0,
-            50.0: 162.0,
-            70.0: 204.0,
-            95.0: 244.0,
-            120.0: 281.0,
-            150.0: 323.0,
-            185.0: 370.0,
-            240.0: 435.0,
-            300.0: 495.0,
-            400.0: 565.0,
-            500.0: 630.0,
-        },
-        "C": {
-            1.5: 20.0,
-            2.5: 27.0,
-            4.0: 36.0,
-            6.0: 46.0,
-            10.0: 61.0,
-            16.0: 80.0,
-            25.0: 104.0,
-            35.0: 125.0,
-            50.0: 150.0,
-            70.0: 192.0,
-            95.0: 232.0,
-            120.0: 269.0,
-            150.0: 309.0,
-            185.0: 355.0,
-            240.0: 415.0,
-            300.0: 480.0,
-            400.0: 555.0,
-            500.0: 625.0,
-        },
-        "D": {
-            1.5: 25.0,
-            2.5: 33.0,
-            4.0: 43.0,
-            6.0: 55.0,
-            10.0: 75.0,
-            16.0: 95.0,
-            25.0: 115.0,
-            35.0: 140.0,
-            50.0: 170.0,
-            70.0: 215.0,
-            95.0: 260.0,
-            120.0: 300.0,
-            150.0: 340.0,
-            185.0: 385.0,
-            240.0: 455.0,
-            300.0: 520.0,
-            400.0: 600.0,
-            500.0: 680.0,
-        },
-        "E": {
-            1.5: 25.0,
-            2.5: 33.0,
-            4.0: 44.0,
-            6.0: 56.0,
-            10.0: 75.0,
-            16.0: 100.0,
-            25.0: 127.0,
-            35.0: 154.0,
-            50.0: 185.0,
-            70.0: 229.0,
-            95.0: 273.0,
-            120.0: 312.0,
-            150.0: 356.0,
-            185.0: 402.0,
-            240.0: 467.0,
-            300.0: 535.0,
-            400.0: 615.0,
-            500.0: 700.0,
-        },
-        "F": {
-            1.5: 29.0,
-            2.5: 38.0,
-            4.0: 51.0,
-            6.0: 65.0,
-            10.0: 89.0,
-            16.0: 119.0,
-            25.0: 156.0,
-            35.0: 191.0,
-            50.0: 231.0,
-            70.0: 295.0,
-            95.0: 357.0,
-            120.0: 412.0,
-            150.0: 476.0,
-            185.0: 546.0,
-            240.0: 640.0,
-            300.0: 720.0,
-            400.0: 820.0,
-            500.0: 920.0,
-        },
-        "G": {
-            1.5: 27.0,
-            2.5: 36.0,
-            4.0: 48.0,
-            6.0: 61.0,
-            10.0: 83.0,
-            16.0: 111.0,
-            25.0: 146.0,
-            35.0: 179.0,
-            50.0: 217.0,
-            70.0: 276.0,
-            95.0: 334.0,
-            120.0: 386.0,
-            150.0: 446.0,
-            185.0: 511.0,
-            240.0: 598.0,
-            300.0: 670.0,
-            400.0: 760.0,
-            500.0: 850.0,
-        },
-    }
-
-    AMPACITY_INSULATION_FACTORS = {
-        "PVC": {
-            "Cu": {
-                "A1": 1.0,
-                "A2": 1.0,
-                "B1": 1.0,
-                "B2": 1.0,
-                "C": 1.0,
-                "D": 1.0,
-                "E": 1.0,
-                "F": 1.0,
-                "G": 1.0,
-            },
-            "Al": {
-                "A1": 0.76,
-                "A2": 0.76,
-                "B1": 0.76,
-                "B2": 0.76,
-                "C": 0.76,
-                "D": 0.76,
-                "E": 0.76,
-                "F": 0.76,
-                "G": 0.76,
-            },
-        },
-        "XLPE": {
-            "Cu": {
-                "A1": 1.2,
-                "A2": 1.2,
-                "B1": 1.21,
-                "B2": 1.18,
-                "C": 1.27,
-                "D": 1.2,
-                "E": 1.23,
-                "F": 1.24,
-                "G": 1.22,
-            },
-            "Al": {
-                "A1": 0.92,
-                "A2": 0.92,
-                "B1": 0.92,
-                "B2": 0.9,
-                "C": 0.96,
-                "D": 0.92,
-                "E": 0.94,
-                "F": 0.95,
-                "G": 0.93,
-            },
-        },
-    }
-
-    AMPACITY_LOADED_FACTORS = {
-        "A1": {2: 1.18, 3: 1.0},
-        "A2": {2: 1.18, 3: 1.0},
-        "B1": {2: 1.17, 3: 1.0},
-        "B2": {2: 1.15, 3: 1.0},
-        "C": {2: 1.17, 3: 1.0},
-        "D": {2: 1.15, 3: 1.0},
-        "E": {2: 1.16, 3: 1.0},
-        "F": {2: 1.13, 3: 1.0},
-        "G": {2: 1.13, 3: 1.0},
-    }
-
-    GROUPING_FACTORS = {
-        1: 1.0,
-        2: 0.8,
-        3: 0.7,
-        4: 0.65,
-        5: 0.6,
-        6: 0.57,
-        7: 0.54,
-        8: 0.52,
-        9: 0.5,
-        10: 0.48,
-        11: 0.47,
-        12: 0.46,
-        13: 0.45,
-        14: 0.44,
-        15: 0.43,
-        16: 0.42,
-        17: 0.41,
-        18: 0.4,
-        19: 0.39,
-        20: 0.38,
-    }
-
-    KT_V_TABLE = {
-        "PVC": {
-            10: 1.22,
-            15: 1.17,
-            20: 1.12,
-            25: 1.06,
-            30: 1.0,
-            35: 0.94,
-            40: 0.87,
-            45: 0.79,
-            50: 0.71,
-            55: 0.61,
-            60: 0.5,
-            65: 0.35,
-            70: 0.2,
-        },
-        "XLPE": {
-            10: 1.15,
-            15: 1.12,
-            20: 1.08,
-            25: 1.04,
-            30: 1.0,
-            35: 0.96,
-            40: 0.91,
-            45: 0.87,
-            50: 0.82,
-            55: 0.76,
-            60: 0.71,
-            65: 0.65,
-            70: 0.58,
-            75: 0.5,
-            80: 0.41,
-            85: 0.29,
-            90: 0.2,
-        },
-    }
-
-    KT_Z_TABLE = {
-        "PVC": {
-            10: 1.1,
-            15: 1.06,
-            20: 1.0,
-            25: 0.95,
-            30: 0.9,
-            35: 0.86,
-            40: 0.82,
-            45: 0.78,
-            50: 0.75,
-            55: 0.72,
-            60: 0.7,
-        },
-        "XLPE": {
-            10: 1.06,
-            15: 1.03,
-            20: 1.0,
-            25: 0.97,
-            30: 0.94,
-            35: 0.91,
-            40: 0.88,
-            45: 0.85,
-            50: 0.82,
-            55: 0.79,
-            60: 0.76,
-        },
     }
 
     # Neutralize embedded dictionaries: use external data only
@@ -1054,7 +191,7 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
     REACTANCE_DATA: dict[str, typing.Any] = {}
 
     TREE_COLUMNS = (
-        "Strujni krug",
+        CIRCUIT_KEY,
         "OD",
         "DO",
         "E",
@@ -1063,7 +200,7 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         "nž",
         "n∥",
         "Кабелей в группе (S)",
-        "Pi",
+        PI_KEY,
         "Kj",
         "η",
         "Pj",
@@ -1077,16 +214,16 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         "In [A]",
         "k",
         "I2 [A]",
-        "Icalc [A]",
+        ICALC_KEY,
         "R_base [Ω/km]",
         "ϭ",
         "Iz [A]",
-        "ΔU %",
-        "Ukupni ΔU %",
+        DELTA_U_KEY,
+        TOTAL_DELTA_U_KEY,
         "Limit ΔU %",
-        "По току",
-        "По ΔU",
-        "Защита",
+        BY_CURRENT_KEY,
+        BY_DELTA_U_KEY,
+        PROTECTION_KEY,
         "Ключ",
         "Совместимость IEC",
     )
