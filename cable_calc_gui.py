@@ -384,34 +384,139 @@ class CableCalcApp(tk.Tk):
     }
 
     HELP_TEXTS = {
-        "ru": """Описание коэффициентов IEC 60364:\n\n"
-        "S — коэффициент группировки кабелей (Kn). Учитывает взаимное нагревание при совместной прокладке.\n"
-        "T — температурный коэффициент (Kt) для воздуха или грунта. Используйте табличные значения IEC 60364-5-52.\n"
-        "η — КПД установки. Определяется по паспорту оборудования.\n"
-        "Kj — коэффициент спроса (одновременности) для группы потребителей.\n"
-        "ΔU — допустимое падение напряжения по выбранному ключу (UIDM, SVDM, SVTS, UITS).\n"
-        "cos φ — коэффициент мощности нагрузки.\n"
-        "In, k — параметры защитного устройства: номинальный ток и коэффициент I2/In.\n"
-        "Проверяйте, что Ib ≤ In ≤ Iz и I2 ≤ 1.45×Iz в соответствии с IEC 60364-4-43.\n""",
-        "sr": """Opis koeficijenata prema IEC 60364:\n\n"
-        "S — koeficijent grupisanja kablova (Kn) koji uzima u obzir međusobno zagrevanje.\n"
-        "T — temperaturni koeficijent (Kt) za vazduh ili tlo prema tabelama IEC 60364-5-52.\n"
-        "η — efikasnost postrojenja prema podacima proizvođača.\n"
-        "Kj — koeficijent istovremenosti potrošača.\n"
-        "ΔU — dozvoljeni pad napona po odabranom ključu (UIDM, SVDM, SVTS, UITS).\n"
-        "cos φ — faktor snage opterećenja.\n"
-        "In, k — parametri zaštitnog uređaja: nazivna struja i odnos I2/In.\n"
-        "Proverite da Ib ≤ In ≤ Iz i da je I2 ≤ 1.45×Iz u skladu sa IEC 60364-4-43.\n""",
-        "en": """Description of IEC 60364 factors:\n\n"
-        "S – cable grouping factor (Kn) accounting for mutual heating.\n"
-        "T – ambient temperature factor (Kt) for air or soil from IEC 60364-5-52 tables.\n"
-        "η – installation efficiency as specified by the manufacturer.\n"
-        "Kj – demand (diversity) factor for the load group.\n"
-        "ΔU – permitted voltage drop according to the selected key (UIDM, SVDM, SVTS, UITS).\n"
-        "cos φ – load power factor.\n"
-        "In, k – protective device parameters: rated current and I2/In ratio.\n"
-        "Ensure Ib ≤ In ≤ Iz and I2 ≤ 1.45×Iz in line with IEC 60364-4-43.\n""",
-    }
+    "ru": """Руководство по программе расчета кабелей (IEC 60364):\n\n
+**Общее описание**:\n
+Программа предназначена для расчета параметров кабельных линий согласно стандарту IEC 60364-5-52. Она позволяет определить допустимый ток (Iz), падение напряжения (ΔU), подобрать сечение кабеля и параметры защитного устройства, а также проверить соответствие требованиям IEC 60364-4-43. Поддерживаются медные (Cu) и алюминиевые (Al) проводники, изоляция PVC и XLPE/EPR, а также различные методы прокладки (A1, A2, B1, B2, C, D, E, F, G).\n\n
+**Основные функции**:\n
+- **Расчет параметров**: Вводите данные (мощность, напряжение, длина, сечение, и т.д.) для расчета тока нагрузки (Icalc), допустимого тока (Iz), падения напряжения (ΔU) и кумулятивного падения напряжения (Ukupni ΔU %).\n
+- **Проверка защиты**: Проверяет соответствие номинального тока защиты (In) и тока срабатывания (I2) требованиям: Icalc ≤ In ≤ Iz и I2 ≤ 1.45 × Iz.\n
+- **Автоматический подбор параметров**: Кнопка "Подобрать параметры" выбирает минимальное сечение и номинальный ток защиты (In), соответствующие требованиям по току и ΔU.\n
+- **Редактирование и удаление**: Используйте кнопки "Загрузить строку в форму" и "Удалить выбранную строку" для редактирования или удаления записей в таблице результатов.\n
+- **Экспорт и сохранение**: Сохраняйте проект в JSON ("Сохранить проект") и экспортируйте результаты в Excel ("Экспорт в Excel") с автофильтром и форматированием.\n
+- **Локализация**: Поддержка русского, сербского и английского языков через меню "Язык".\n\n
+**Коэффициенты и параметры**:\n
+- **S (Kn)**: Коэффициент группировки, учитывающий взаимное нагревание кабелей. Рассчитывается автоматически на основе числа кабелей в группе. Если включен флажок "Учитывать n∥ в S", параллельные кабели (n∥) добавляются к числу кабелей в группе.\n
+- **T (Kt)**: Температурный коэффициент для воздуха или грунта, выбирается автоматически из таблиц IEC 60364-5-52.\n
+- **η**: КПД установки, должен быть в диапазоне (0;1]. Определяется по паспорту оборудования.\n
+- **Kj**: Коэффициент спроса (одновременности) для группы потребителей.\n
+- **ΔU**: Допустимое падение напряжения, определяется ключом (UIDM: 5%, SVDM: 3%, SVTS: 5%, UITS: 8%).\n
+- **cos φ**: Коэффициент мощности нагрузки, должен быть в диапазоне (0;1].\n
+- **In, k**: Параметры защитного устройства: номинальный ток (In) и коэффициент срабатывания (I2/In).\n
+- **ϭ**: Специфическая проводимость проводника (м/Ω·мм²), рассчитывается как 1/ρ, где ρ — удельное сопротивление при 20°C.\n
+- **n∥**: Число параллельных кабелей, делящих ток нагрузки (Icalc/n∥) и уменьшающих сопротивление (R/n∥, X/n∥).\n\n
+**Методы прокладки (IEC 60364-5-52)**:\n
+- **A1**: Многожильные кабели в трубе, проложенной в теплоизолированной стене (низкая теплопроводность).\n
+- **A2**: Многожильные кабели в трубе, проложенной в обычной стене или кладке (высокая теплопроводность).\n
+- **B1**: Одножильные кабели в трубе, проложенной в теплоизолированной стене.\n
+- **B2**: Одножильные кабели в трубе, проложенной в обычной стене или кладке.\n
+- **C**: Многожильные или одножильные кабели на поверхности (например, на стене или потолке) без труб.\n
+- **D**: Кабели, проложенные в грунте (в траншее или трубе под землёй).\n
+- **E**: Многожильные кабели в свободном воздухе (на открытой трассе, без касания поверхностей).\n
+- **F**: Одножильные кабели в свободном воздухе, с расстоянием между кабелями не менее диаметра.\n
+- **G**: Одножильные кабели в свободном воздухе, с минимальным расстоянием или касанием друг друга.\n\n
+**Инструкции по использованию**:\n
+1. Заполните поля ввода: укажите цепь, мощность (Pi), Kj, η, напряжение (U), cos φ, длину (L), сечение, метод прокладки, число жил (nž), и т.д.\n
+2. Убедитесь, что U=230 В используется только с nж=2 (однофазная система), а U=400 В — с nж=3 (трёхфазная).\n
+3. Выберите метод прокладки в соответствии с условиями установки (например, D для грунта, C для поверхностной прокладки).\n
+4. Используйте "Подобрать параметры" для автоматического выбора сечения и In.\n
+5. Нажмите "Рассчитать и добавить строку", чтобы сохранить результат в таблице.\n
+6. Проверьте "Совместимость IEC": должно быть "OK" для соответствия стандарту.\n
+7. При необходимости отредактируйте строку через "Загрузить строку в форму" или удалите через "Удалить выбранную строку".\n
+8. Сохраните проект или экспортируйте результаты в Excel.\n\n
+**Замечания**:\n
+- Если температура выходит за пределы таблиц IEC, программа выдаст предупреждение.\n
+- При несоответствии по току (Icalc > Iz) или ΔU программа предложит рекомендации.\n
+- Проверяйте корректность ввода, чтобы избежать ошибок в расчетах.\n
+- Выбор метода прокладки существенно влияет на допустимый ток (Iz). Используйте справку для выбора подходящего метода.\n""",
+    "sr": """Uputstvo za program za proračun kablova (IEC 60364):\n\n
+**Opšti opis**:\n
+Program je namenjen za proračun parametara kablovskih linija prema standardu IEC 60364-5-52. Omogućava određivanje dopustive struje (Iz), pada napona (ΔU), odabir preseka kabla i parametara zaštitnog uređaja, kao i proveru usaglašenosti sa zahtevima IEC 60364-4-43. Podržava bakarne (Cu) i aluminijumske (Al) provodnike, izolaciju PVC i XLPE/EPR, i različite metode polaganja (A1, A2, B1, B2, C, D, E, F, G).\n\n
+**Glavne funkcije**:\n
+- **Proračun parametara**: Unesite podatke (snaga, napon, dužina, presek, itd.) za izračunavanje struje opterećenja (Icalc), dopustive struje (Iz), pada napona (ΔU) i ukupnog pada napona (Ukupni ΔU %).\n
+- **Provera zaštite**: Proverava usaglašenost nazivne struje zaštite (In) i struje okidanja (I2) sa uslovima: Icalc ≤ In ≤ Iz i I2 ≤ 1.45 × Iz.\n
+- **Automatski odabir parametara**: Dugme "Odaberi parametre" bira minimalni presek i nazivnu struju zaštite (In) koji zadovoljavaju zahteve za struju i ΔU.\n
+- **Uređivanje i brisanje**: Koristite dugmad "Učitaj red u formu" i "Obriši izabrani red" za uređivanje ili uklanjanje unosa u tabeli rezultata.\n
+- **Izvoz i čuvanje**: Sačuvajte projekat u JSON formatu ("Sačuvaj projekat") i izvezite rezultate u Excel ("Izvoz u Excel") sa automatskim filterima i formatiranjem.\n
+- **Lokalizacija**: Podrška za srpski, ruski i engleski jezik putem menija "Jezik".\n\n
+**Koeficijenti i parametri**:\n
+- **S (Kn)**: Koeficijent grupisanja koji uzima u obzir međusobno zagrevanje kablova. Automatski se računa na osnovu broja kablova u grupi. Ako je označeno polje "Uvažavaj n∥ u S", paralelni kablovi (n∥) se dodaju broju kablova u grupi.\n
+- **T (Kt)**: Temperaturni koeficijent za vazduh ili tlo, automatski se bira iz tabela IEC 60364-5-52.\n
+- **η**: Efikasnost postrojenja, mora biti u opsegu (0;1]. Određuje se prema podacima proizvođača.\n
+- **Kj**: Koeficijent istovremenosti za grupu potrošača.\n
+- **ΔU**: Dozvoljeni pad napona, određen ključem (UIDM: 5%, SVDM: 3%, SVTS: 5%, UITS: 8%).\n
+- **cos φ**: Faktor snage opterećenja, mora biti u opsegu (0;1].\n
+- **In, k**: Parametri zaštitnog uređaja: nazivna struja (In) i koeficijent okidanja (I2/In).\n
+- **ϭ**: Specifična provodnost provodnika (m/Ω·mm²), izračunava se kao 1/ρ, gde je ρ specifično otpornost na 20°C.\n
+- **n∥**: Broj paralelnih kablova koji dele struju opterećenja (Icalc/n∥) i smanjuju otpor (R/n∥, X/n∥).\n\n
+**Metode polaganja (IEC 60364-5-52)**:\n
+- **A1**: Višežilni kablovi u cevi, položeni u toplotno izolovani zid (niska toplotna provodljivost).\n
+- **A2**: Višežilni kablovi u cevi, položeni u običan zid ili zidanu konstrukciju (visoka toplotna provodljivost).\n
+- **B1**: Jednožilni kablovi u cevi, položeni u toplotno izolovani zid.\n
+- **B2**: Jednožilni kablovi u cevi, položeni u običan zid ili zidanu konstrukciju.\n
+- **C**: Višežilni ili jednožilni kablovi na površini (npr. na zidu ili plafonu) bez cevi.\n
+- **D**: Kablovi položeni u tlo (u rovu ili cevi ispod zemlje).\n
+- **E**: Višežilni kablovi na slobodnom vazduhu (na otvorenoj trasi, bez dodira sa površinama).\n
+- **F**: Jednožilni kablovi na slobodnom vazduhu, sa razmakom između kablova najmanje jednog prečnika.\n
+- **G**: Jednožilni kablovi na slobodnom vazduhu, sa minimalnim razmakom ili u dodiru jedan s drugim.\n\n
+**Uputstvo za korišćenje**:\n
+1. Popunite polja za unos: unesite krug, snagu (Pi), Kj, η, napon (U), cos φ, dužinu (L), presek, metod polaganja, broj žila (nž), itd.\n
+2. Uverite se da je U=230 V korišćeno samo sa nž=2 (jednofazni sistem), a U=400 V sa nž=3 (trofazni sistem).\n
+3. Odaberite metod polaganja u skladu sa uslovima instalacije (npr. D za tlo, C za površinsko polaganje).\n
+4. Koristite "Odaberi parametre" za automatski izbor preseka i In.\n
+5. Kliknite na "Izračunaj i dodaj red" da biste sačuvali rezultat u tabelu.\n
+6. Proverite "IEC kompatibilnost": treba da bude "OK" za usaglašenost sa standardom.\n
+7. Po potrebi uredite red pomoću "Učitaj red u formu" ili obrišite pomoću "Obriši izabrani red".\n
+8. Sačuvajte projekat ili izvezite rezultate u Excel.\n\n
+**Napomene**:\n
+- Ako temperatura izlazi izvan opsega tabela IEC, program će izdati upozorenje.\n
+- Ako postoji neusaglašenost po struji (Icalc > Iz) ili ΔU, program će predložiti preporuke.\n
+- Proverite ispravnost unosa kako biste izbegli greške u proračunima.\n
+- Izbor metode polaganja značajno utiče na dopustivu struju (Iz). Koristite pomoć za odabir odgovarajuće metode.\n""",
+    "en": """Guide to the Cable Calculation Program (IEC 60364):\n\n
+**Overview**:\n
+This program is designed to calculate cable parameters according to IEC 60364-5-52. It determines the permissible current (Iz), voltage drop (ΔU), selects cable cross-sections and protective device parameters, and verifies compliance with IEC 60364-4-43. It supports copper (Cu) and aluminum (Al) conductors, PVC and XLPE/EPR insulation, and various installation methods (A1, A2, B1, B2, C, D, E, F, G).\n\n
+**Main Features**:\n
+- **Parameter Calculation**: Enter data (power, voltage, length, cross-section, etc.) to calculate load current (Icalc), permissible current (Iz), voltage drop (ΔU), and cumulative voltage drop (Ukupni ΔU %).\n
+- **Protection Check**: Verifies compliance of the protective devices rated current (In) and tripping current (I2) with conditions: Icalc ≤ In ≤ Iz and I2 ≤ 1.45 × Iz.\n
+- **Automatic Parameter Selection**: The "Select parameters" button chooses the minimum cross-section and rated current (In) that meet current and ΔU requirements.\n
+- **Editing and Deletion**: Use the "Load row into form" and "Remove selected row" buttons to edit or delete entries in the results table.\n
+- **Export and Save**: Save the project in JSON ("Save project") and export results to Excel ("Export to Excel") with autofilter and formatting.\n
+- **Localization**: Supports Russian, Serbian, and English languages via the "Language" menu.\n\n
+**Coefficients and Parameters**:\n
+- **S (Kn)**: Grouping factor accounting for mutual heating of cables. Calculated automatically based on the number of cables in a group. If the "Include n∥ in S" checkbox is enabled, parallel cables (n∥) are added to the group count.\n
+- **T (Kt)**: Temperature factor for air or soil, automatically selected from IEC 60364-5-52 tables.\n
+- **η**: Installation efficiency, must be in the range (0;1]. Determined from equipment specifications.\n
+- **Kj**: Demand (diversity) factor for a group of loads.\n
+- **ΔU**: Permissible voltage drop, defined by the key (UIDM: 5%, SVDM: 3%, SVTS: 5%, UITS: 8%).\n
+- **cos φ**: Load power factor, must be in the range (0;1].\n
+- **In, k**: Protective device parameters: rated current (In) and tripping ratio (I2/In).\n
+- **ϭ**: Specific conductivity of the conductor (m/Ω·mm²), calculated as 1/ρ, where ρ is the resistivity at 20°C.\n
+- **n∥**: Number of parallel cables sharing the load current (Icalc/n∥) and reducing resistance (R/n∥, X/n∥).\n\n
+**Installation Methods (IEC 60364-5-52)**:\n
+- **A1**: Multicore cables in conduit within a thermally insulated wall (low thermal conductivity).\n
+- **A2**: Multicore cables in conduit within a normal wall or masonry (high thermal conductivity).\n
+- **B1**: Single-core cables in conduit within a thermally insulated wall.\n
+- **B2**: Single-core cables in conduit within a normal wall or masonry.\n
+- **C**: Multicore or single-core cables on a surface (e.g., on a wall or ceiling) without conduit.\n
+- **D**: Cables buried in the ground (in a trench or conduit underground).\n
+- **E**: Multicore cables in free air (on an open tray, not touching surfaces).\n
+- **F**: Single-core cables in free air, spaced at least one cable diameter apart.\n
+- **G**: Single-core cables in free air, with minimal spacing or touching each other.\n\n
+**Usage Instructions**:\n
+1. Fill in the input fields: specify the circuit, power (Pi), Kj, η, voltage (U), cos φ, length (L), cross-section, installation method, number of cores (nž), etc.\n
+2. Ensure U=230 V is used only with nž=2 (single-phase system), and U=400 V with nž=3 (three-phase system).\n
+3. Select the installation method based on the installation conditions (e.g., D for ground, C for surface mounting).\n
+4. Use "Select parameters" to automatically choose cross-section and In.\n
+5. Click "Calculate and add row" to save the result to the table.\n
+6. Check "IEC compatibility": it should be "OK" for standard compliance.\n
+7. Edit a row using "Load row into form" or delete it with "Remove selected row".\n
+8. Save the project or export results to Excel.\n\n
+**Notes**:\n
+- If the temperature is outside IEC table ranges, a warning will be displayed.\n
+- If there is non-compliance in current (Icalc > Iz) or ΔU, recommendations will be provided.\n
+- Verify input correctness to avoid calculation errors.\n
+- The choice of installation method significantly affects the permissible current (Iz). Use the help to select the appropriate method.\n""",
+}
 
     LABEL_KEY_MAP = {
         "Strujni krug": "label.circuit",
@@ -2919,11 +3024,12 @@ class CableCalcApp(tk.Tk):
 
         for idx, column in enumerate(self.TREE_COLUMNS, start=1):
             max_length = len(header_row[idx - 1])
-            for cell in worksheet.iter_cols(min_col=idx, max_col=idx, min_row=1, max_row=worksheet.max_row)[0]:
-                cell_value = cell.value
-                if cell_value is None:
-                    continue
-                max_length = max(max_length, len(str(cell_value)))
+            for column_cells in worksheet.iter_cols(min_col=idx, max_col=idx, min_row=1, max_row=worksheet.max_row):
+                for cell in column_cells:
+                    cell_value = cell.value
+                    if cell_value is None:
+                        continue
+                    max_length = max(max_length, len(str(cell_value)))
             worksheet.column_dimensions[get_column_letter(idx)].width = min(max_length + 2, 40)
 
         workbook.save(file_path)
