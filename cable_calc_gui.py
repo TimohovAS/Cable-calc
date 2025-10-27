@@ -1,3 +1,4 @@
+import json
 import math
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -37,79 +38,79 @@ class CableCalcApp(tk.Tk):
         "A1": {
             1.5: 17.0,
             2.5: 23.0,
-            4.0: 31.0,
-            6.0: 40.0,
-            10.0: 54.0,
-            16.0: 72.0,
-            25.0: 94.0,
-            35.0: 118.0,
-            50.0: 141.0,
-            70.0: 180.0,
-            95.0: 216.0,
-            120.0: 249.0,
-            150.0: 285.0,
-            185.0: 324.0,
-            240.0: 380.0,
+            4.0: 30.0,
+            6.0: 38.0,
+            10.0: 52.0,
+            16.0: 69.0,
+            25.0: 89.0,
+            35.0: 110.0,
+            50.0: 132.0,
+            70.0: 168.0,
+            95.0: 202.0,
+            120.0: 231.0,
+            150.0: 265.0,
+            185.0: 301.0,
+            240.0: 352.0,
         },
         "A2": {
             1.5: 18.0,
             2.5: 24.0,
             4.0: 32.0,
             6.0: 40.0,
-            10.0: 55.0,
-            16.0: 74.0,
-            25.0: 97.0,
-            35.0: 122.0,
-            50.0: 146.0,
-            70.0: 186.0,
-            95.0: 224.0,
-            120.0: 258.0,
-            150.0: 295.0,
-            185.0: 335.0,
-            240.0: 392.0,
+            10.0: 54.0,
+            16.0: 72.0,
+            25.0: 94.0,
+            35.0: 117.0,
+            50.0: 141.0,
+            70.0: 179.0,
+            95.0: 216.0,
+            120.0: 249.0,
+            150.0: 285.0,
+            185.0: 324.0,
+            240.0: 380.0,
         },
         "B1": {
-            1.5: 14.5,
-            2.5: 19.5,
-            4.0: 26.0,
-            6.0: 32.0,
-            10.0: 44.0,
-            16.0: 57.0,
-            25.0: 76.0,
-            35.0: 96.0,
-            50.0: 115.0,
-            70.0: 146.0,
-            95.0: 176.0,
-            120.0: 202.0,
-            150.0: 231.0,
-            185.0: 262.0,
-            240.0: 308.0,
-        },
-        "B2": {
-            1.5: 16.5,
-            2.5: 22.0,
-            4.0: 29.0,
-            6.0: 37.0,
-            10.0: 51.0,
-            16.0: 68.0,
-            25.0: 89.0,
-            35.0: 110.0,
-            50.0: 131.0,
-            70.0: 164.0,
-            95.0: 196.0,
-            120.0: 225.0,
-            150.0: 257.0,
-            185.0: 293.0,
-            240.0: 344.0,
-        },
-        "C": {
-            1.5: 18.0,
-            2.5: 24.0,
-            4.0: 32.0,
-            6.0: 41.0,
-            10.0: 57.0,
+            1.5: 19.0,
+            2.5: 26.0,
+            4.0: 34.0,
+            6.0: 44.0,
+            10.0: 60.0,
             16.0: 76.0,
             25.0: 101.0,
+            35.0: 123.0,
+            50.0: 146.0,
+            70.0: 185.0,
+            95.0: 225.0,
+            120.0: 260.0,
+            150.0: 300.0,
+            185.0: 344.0,
+            240.0: 404.0,
+        },
+        "B2": {
+            1.5: 21.0,
+            2.5: 28.0,
+            4.0: 37.0,
+            6.0: 48.0,
+            10.0: 65.0,
+            16.0: 84.0,
+            25.0: 110.0,
+            35.0: 135.0,
+            50.0: 162.0,
+            70.0: 204.0,
+            95.0: 244.0,
+            120.0: 281.0,
+            150.0: 323.0,
+            185.0: 370.0,
+            240.0: 435.0,
+        },
+        "C": {
+            1.5: 20.0,
+            2.5: 27.0,
+            4.0: 36.0,
+            6.0: 46.0,
+            10.0: 61.0,
+            16.0: 80.0,
+            25.0: 104.0,
             35.0: 125.0,
             50.0: 150.0,
             70.0: 192.0,
@@ -120,17 +121,21 @@ class CableCalcApp(tk.Tk):
             240.0: 415.0,
         },
         "D": {
-            10.0: 46.0,
-            16.0: 61.0,
-            25.0: 80.0,
-            35.0: 99.0,
-            50.0: 118.0,
-            70.0: 146.0,
-            95.0: 176.0,
-            120.0: 202.0,
-            150.0: 229.0,
-            185.0: 260.0,
-            240.0: 302.0,
+            1.5: 25.0,
+            2.5: 33.0,
+            4.0: 43.0,
+            6.0: 55.0,
+            10.0: 75.0,
+            16.0: 95.0,
+            25.0: 115.0,
+            35.0: 140.0,
+            50.0: 170.0,
+            70.0: 215.0,
+            95.0: 260.0,
+            120.0: 300.0,
+            150.0: 340.0,
+            185.0: 385.0,
+            240.0: 455.0,
         },
         "E": {
             1.5: 25.0,
@@ -347,6 +352,7 @@ class CableCalcApp(tk.Tk):
         "nž",
         "Pi",
         "Kj",
+        "η",
         "Pj",
         "U",
         "cosφ",
@@ -355,7 +361,6 @@ class CableCalcApp(tk.Tk):
         "Način polaganja",
         "S",
         "T",
-        "Ucf",
         "In [A]",
         "k",
         "I2 [A]",
@@ -401,6 +406,7 @@ class CableCalcApp(tk.Tk):
         self._intermediate_vars: dict[str, tk.StringVar] = {}
         self._intermediate_labels: dict[str, ttk.Label] = {}
         self._table_data: list[dict[str, str]] = []
+        self._last_temperature_warning: tuple[str, str, float] | None = None
 
         self._build_menu()
         self._build_layout()
@@ -408,6 +414,9 @@ class CableCalcApp(tk.Tk):
     def _build_menu(self) -> None:
         menubar = tk.Menu(self)
         file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="Сохранить проект…", command=self.save_project)
+        file_menu.add_command(label="Загрузить проект…", command=self.load_project)
+        file_menu.add_separator()
         file_menu.add_command(label="Экспорт в Excel…", command=self.export_to_excel)
         menubar.add_cascade(label="Файл", menu=file_menu)
         self.config(menu=menubar)
@@ -449,7 +458,7 @@ class CableCalcApp(tk.Tk):
             "Описание коэффициентов IEC 60364:\n",
             "S — коэффициент группировки кабелей. Он учитывает влияние совместной прокладки нескольких кабелей на допустимый ток. Значение < 1 уменьшает допустимый ток при плотной укладке.\n",
             "T — коэффициент температуры окружающей среды. Корректирует допустимую нагрузку в зависимости от фактической температуры воздуха или грунта относительно табличных условий.\n",
-            "Ucf — коэффициент способа прокладки. Используется для корректировки расчётного тока при отличии реального способа прокладки от базовых условий IEC 60364.\n",
+            "η — КПД установки. При η < 1 ток уменьшается, если Pi учитывает потери, и увеличивается, если Pi описывает полезную мощность. Укажите значение согласно паспорту оборудования.\n",
             "Kj — коэффициент спроса (коэффициент одновременности) для расчёта нагрузки группы потребителей.\n",
             "ΔU — допустимое падение напряжения по выбранному ключу (UIDM, SVDM, SVTS, UITS) согласно разделам IEC 60364, указывающее максимально допустимое отклонение напряжения в процентах.\n",
             "cos φ — коэффициент мощности нагрузки.\n",
@@ -469,6 +478,7 @@ class CableCalcApp(tk.Tk):
             ("Oznaka-tip-KABLA", ""),
             ("Pi, W", ""),
             ("Kj", ""),
+            ("η", "1.0"),
             ("Pj", ""),
             ("U", self.VOLTAGE_LEVELS[0]),
             ("cos φ", ""),
@@ -481,7 +491,6 @@ class CableCalcApp(tk.Tk):
             ("Температура, °C", "30"),
             ("S", "1.0"),
             ("T", "1.0"),
-            ("Ucf", "1.0"),
             ("In, A", ""),
             ("k", "1.45"),
             ("Ключ ΔU", list(self.DROP_LIMIT_KEYS.keys())[0]),
@@ -708,10 +717,11 @@ class CableCalcApp(tk.Tk):
         points = sorted(table)
         if not points:
             return None
-        if temperature <= points[0]:
-            return table[points[0]]
-        if temperature >= points[-1]:
-            return table[points[-1]]
+        if temperature < points[0] or temperature > points[-1]:
+            return None
+
+        if temperature in table:
+            return table[temperature]
 
         for lower, upper in zip(points, points[1:]):
             if lower <= temperature <= upper:
@@ -768,6 +778,18 @@ class CableCalcApp(tk.Tk):
         if widget_class == "TEntry":
             widget.configure(style="Invalid.TEntry")
 
+    def _show_temperature_warning(self, insulation_key: str, medium: str, temperature: float) -> None:
+        rounded_temp = round(temperature, 1)
+        key = (insulation_key, medium, rounded_temp)
+        if self._last_temperature_warning == key:
+            return
+        self._last_temperature_warning = key
+        messagebox.showwarning(
+            "Температура вне диапазона",
+            "Для выбранной изоляции и среды отсутствует табличный коэффициент при температуре "
+            f"{rounded_temp} °C. Проверьте корректность условий или используйте значения в пределах таблиц IEC 60364.",
+        )
+
     def _update_intermediate_results(self, *_: object) -> None:
         if not self._intermediate_vars:
             return
@@ -820,10 +842,10 @@ class CableCalcApp(tk.Tk):
 
         pi = self._try_parse_float(self._form_values["Pi, W"].get())
         kj = self._try_parse_float(self._form_values["Kj"].get())
+        eta_value = self._try_parse_float(self._form_values["η"].get())
         cos_phi = self._try_parse_float(self._form_values["cos φ"].get())
         length = self._try_parse_float(self._form_values["Dužina L, m"].get())
         area = self._try_parse_float(self._form_values["Presek, mm²"].get())
-        u_coeff = self._try_parse_float(self._form_values["Ucf"].get())
         temperature = self._try_parse_float(self._form_values["Температура, °C"].get())
 
         group_factor = self._lookup_group_factor(circuits_count)
@@ -832,7 +854,7 @@ class CableCalcApp(tk.Tk):
         s_coeff = group_factor
 
         temperature_alert = False
-        t_coeff = 1.0
+        t_coeff: float | None = None
         if insulation_meta is not None and temperature is not None:
             temp_factor = self._lookup_temperature_factor(insulation_meta["key"], medium, temperature)
             if temp_factor is not None and temp_factor > 0:
@@ -841,9 +863,28 @@ class CableCalcApp(tk.Tk):
                 temperature_alert = True
         elif insulation_meta is not None:
             temperature_alert = True
-        self._form_values["T"].set(f"{t_coeff:.2f}")
-        self._intermediate_vars["T"].set(f"{t_coeff:.2f}")
+
+        if t_coeff is not None:
+            t_display = f"{t_coeff:.2f}"
+            self._last_temperature_warning = None
+        else:
+            t_display = ""
+            if temperature is not None and insulation_meta is not None:
+                self._show_temperature_warning(insulation_meta["key"], medium, temperature)
+        self._form_values["T"].set(t_display)
+        self._intermediate_vars["T"].set(t_display or "—")
         self._set_entry_alert("Температура, °C", temperature_alert)
+
+        eta_alert = False
+        eta_coeff: float | None = None
+        if eta_value is not None:
+            if eta_value <= 0 or eta_value > 1:
+                eta_alert = True
+            else:
+                eta_coeff = eta_value
+        else:
+            eta_alert = True
+        self._set_entry_alert("η", eta_alert)
 
         voltage_str = self._form_values["U"].get()
         try:
@@ -878,16 +919,14 @@ class CableCalcApp(tk.Tk):
 
         icalc = None
         phase_factor = None
-        if pj is not None and cos_phi is not None and voltage_value:
-            if voltage_value == 230:
-                denominator = voltage_value * cos_phi
-                phase_factor = 2.0
-            else:
-                phase_factor = 2.0 if loaded_cores == 2 else math.sqrt(3)
-                denominator = phase_factor * voltage_value * cos_phi
+        if pj is not None and cos_phi is not None and voltage_value and eta_coeff is not None:
+            phase_factor = 2.0 if loaded_cores == 2 else math.sqrt(3)
+            denominator = phase_factor * voltage_value * cos_phi
             if denominator:
-                icalc = pj / denominator
-            self._intermediate_vars["Icalc [A]"].set(f"{icalc:.3f}")
+                icalc = (pj * eta_coeff) / denominator
+                self._intermediate_vars["Icalc [A]"].set(f"{icalc:.3f}")
+        else:
+            self._intermediate_vars["Icalc [A]"].set("—")
 
         r_per_km = None
         x_per_km = None
@@ -904,13 +943,8 @@ class CableCalcApp(tk.Tk):
             )
 
         iz_numeric = None
-        if (
-            base_ampacity is not None
-            and s_coeff is not None
-            and t_coeff is not None
-            and u_coeff is not None
-        ):
-            iz_numeric = base_ampacity * s_coeff * t_coeff * u_coeff
+        if base_ampacity is not None and t_coeff is not None:
+            iz_numeric = base_ampacity * s_coeff * t_coeff
             self._intermediate_vars["Iz [A]"].set(f"{iz_numeric:.2f}")
         elif base_ampacity is None:
             self._intermediate_vars["Iz [A]"].set("—")
@@ -1039,6 +1073,15 @@ class CableCalcApp(tk.Tk):
         kj = self._parse_float(self._form_values["Kj"].get(), "Kj")
         if kj is None:
             return
+        eta = self._parse_float(self._form_values["η"].get(), "η")
+        if eta is None:
+            return
+        if eta <= 0 or eta > 1:
+            messagebox.showerror(
+                "Ошибка ввода",
+                "Поле 'η' должно содержать значение в диапазоне (0; 1].",
+            )
+            return
         cos_phi = self._parse_float(self._form_values["cos φ"].get(), "cos φ")
         if cos_phi is None:
             return
@@ -1054,9 +1097,6 @@ class CableCalcApp(tk.Tk):
         area = self._parse_float(self._form_values["Presek, mm²"].get(), "Presek, mm²")
         if area is None or area == 0:
             messagebox.showerror("Ошибка ввода", "Поле 'Presek, mm²' должно быть положительным числом.")
-            return
-        u_coeff = self._parse_float(self._form_values["Ucf"].get(), "Ucf")
-        if u_coeff is None:
             return
 
         insulation_meta = self.INSULATION_META.get(insulation_label)
@@ -1089,17 +1129,23 @@ class CableCalcApp(tk.Tk):
             temp_factor = self._lookup_temperature_factor(insulation_meta["key"], medium, temperature)
             if temp_factor is not None and temp_factor > 0:
                 t_coeff = temp_factor
+            else:
+                messagebox.showerror(
+                    "Ошибка ввода",
+                    "Температура выходит за пределы табличных значений IEC 60364. Укажите корректную температуру.",
+                )
+                return
 
         pj = pi * kj
         self._form_values["Pj"].set(f"{pj:.2f}")
 
         voltage_value = int(voltage)
-        if voltage_value == 230:
-            phase_factor = 2.0
-            icalc = pj / (voltage_value * cos_phi)
-        else:
-            phase_factor = 2.0 if loaded_cores == 2 else math.sqrt(3)
-            icalc = pj / (phase_factor * voltage_value * cos_phi)
+        phase_factor = 2.0 if loaded_cores == 2 else math.sqrt(3)
+        denominator = phase_factor * voltage_value * cos_phi
+        if denominator == 0:
+            messagebox.showerror("Ошибка расчёта", "Комбинация параметров приводит к делению на ноль.")
+            return
+        icalc = (pj * eta) / denominator
 
         r_per_km, x_per_km = self._calculate_line_impedance(conductor, insulation_meta["theta"], area, laying)
         r_per_meter = r_per_km / 1000.0
@@ -1121,7 +1167,7 @@ class CableCalcApp(tk.Tk):
             )
             iz_numeric = None
         else:
-            iz_numeric = base_ampacity * s_coeff * t_coeff * u_coeff
+            iz_numeric = base_ampacity * s_coeff * t_coeff
 
         if iz_numeric is not None:
             ampacity_ok = "OK" if icalc <= iz_numeric else "NE"
@@ -1157,6 +1203,7 @@ class CableCalcApp(tk.Tk):
             "nž": str(loaded_cores),
             "Pi": f"{pi:.2f}",
             "Kj": f"{kj:.2f}",
+            "η": f"{eta:.3f}",
             "Pj": f"{pj:.2f}",
             "U": voltage,
             "cosφ": f"{cos_phi:.3f}",
@@ -1165,7 +1212,6 @@ class CableCalcApp(tk.Tk):
             "Način polaganja": laying,
             "S": f"{s_coeff:.2f}",
             "T": f"{t_coeff:.2f}",
-            "Ucf": f"{u_coeff:.2f}",
             "In [A]": f"{in_value:.2f}" if in_value is not None else "",
             "k": f"{k_value:.2f}" if k_value is not None else "",
             "I2 [A]": f"{i2_value:.2f}" if i2_value is not None else "",
@@ -1189,6 +1235,63 @@ class CableCalcApp(tk.Tk):
         for item in self.tree.get_children():
             self.tree.delete(item)
         self._table_data.clear()
+
+    def save_project(self) -> None:
+        file_path = filedialog.asksaveasfilename(
+            title="Сохранить проект",
+            defaultextension=".json",
+            filetypes=[("Файл проекта", "*.json"), ("Все файлы", "*.*")],
+        )
+        if not file_path:
+            return
+
+        data = {
+            "form": {name: var.get() for name, var in self._form_values.items()},
+            "table": self._table_data,
+        }
+
+        try:
+            with open(file_path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle, ensure_ascii=False, indent=2)
+        except OSError as exc:
+            messagebox.showerror("Ошибка", f"Не удалось сохранить проект: {exc}")
+        else:
+            messagebox.showinfo("Сохранение", "Проект успешно сохранён.")
+
+    def load_project(self) -> None:
+        file_path = filedialog.askopenfilename(
+            title="Открыть проект",
+            defaultextension=".json",
+            filetypes=[("Файл проекта", "*.json"), ("Все файлы", "*.*")],
+        )
+        if not file_path:
+            return
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except (OSError, json.JSONDecodeError) as exc:
+            messagebox.showerror("Ошибка", f"Не удалось загрузить проект: {exc}")
+            return
+
+        form_data = payload.get("form", {})
+        table_data = payload.get("table", [])
+
+        for name, value in form_data.items():
+            if name in self._form_values:
+                self._form_values[name].set(str(value))
+
+        self.clear_table()
+
+        for row in table_data:
+            if not isinstance(row, dict):
+                continue
+            normalized = {column: str(row.get(column, "")) for column in self.TREE_COLUMNS}
+            self._table_data.append(normalized)
+            values = [normalized[column] for column in self.TREE_COLUMNS]
+            self.tree.insert("", tk.END, values=values)
+
+        self._update_intermediate_results()
 
     def export_to_excel(self) -> None:
         if not self._table_data:
