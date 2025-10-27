@@ -14,10 +14,10 @@ Glavne funkcije:
 Koeficijenti i parametri:
 - S (Kn): Koeficijent grupisanja, automatski se računa na osnovu broja kablova u grupi; ako je označeno "Uvažavaj n∥ u S", paralelni kablovi se dodaju broju.
 - T (Kt): Temperaturni koeficijent za vazduh ili tlo, automatski se bira iz tabela IEC 60364-5-52.
-- η: Efikasnost postrojenja, mora biti u opsegu (0;1].
+- η: Efikasnost postrojenja, mora biti u opsegu (0;1).
 - Kj: Koeficijent istovremenosti za grupu potrošača.
 - ΔU: Dozvoljeni pad napona (UIDM 5%, SVDM 3%, SVTS 5%, UITS 8%).
-- cos φ: Faktor snage opterećenja (0;1].
+- cos φ: Faktor snage opterećenja (0;1).
 - In, k: Parametri zaštite: nazivna struja (In) i odnos okidanja (I2/In).
 - ϭ: Specifična provodnost provodnika (m/Ω·mm²) = 1/ρ.
 - n∥: Broj paralelnih kablova (dele Icalc/n∥ i R/X/n∥).
