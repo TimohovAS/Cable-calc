@@ -509,7 +509,7 @@ class CableCalcApp(tk.Tk):
     }
 
     CONDUCTOR_TYPES = ["Cu", "Al"]
-    VOLTAGE_LEVELS = ["230", "400"]
+    VOLTAGE_LEVELS = ["400", "230"]
     TEMPERATURE_MEDIA = {
         "air": {"ru": "Воздух", "sr": "Vazduh", "en": "Air"},
         "soil": {"ru": "Грунт", "sr": "Tlo", "en": "Soil"},
