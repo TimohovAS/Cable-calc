@@ -7,6 +7,9 @@ from tkinter import filedialog, messagebox, ttk
 from xml.sax.saxutils import escape
 from zipfile import ZipFile
 
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+
 
 class Tooltip:
     def __init__(self, widget: tk.Widget, text_getter: typing.Callable[[], str]) -> None:
@@ -84,6 +87,21 @@ class CableCalcApp(tk.Tk):
             "en": "Calculate and add row",
         },
         "button.clear": {"ru": "Очистить список", "sr": "Očisti listu", "en": "Clear list"},
+        "button.select_optimal": {
+            "ru": "Подобрать параметры",
+            "sr": "Odaberi parametre",
+            "en": "Select parameters",
+        },
+        "button.remove_row": {
+            "ru": "Удалить выбранную строку",
+            "sr": "Obriši izabrani red",
+            "en": "Remove selected row",
+        },
+        "button.load_row": {
+            "ru": "Загрузить строку в форму",
+            "sr": "Učitaj red u formu",
+            "en": "Load row into form",
+        },
         "label.circuit": {"ru": "Strujni krug", "sr": "Strujni krug", "en": "Circuit"},
         "label.segment_from": {"ru": "Deonica OD", "sr": "Deonica OD", "en": "Segment from"},
         "label.segment_to": {"ru": "Deonica DO", "sr": "Deonica DO", "en": "Segment to"},
@@ -113,6 +131,11 @@ class CableCalcApp(tk.Tk):
             "ru": "Параллельные кабели (n∥)",
             "sr": "Paralelni kablovi (n∥)",
             "en": "Parallel cables (n∥)",
+        },
+        "checkbox.consider_parallel": {
+            "ru": "Учитывать n∥ в S",
+            "sr": "Uvažavaj n∥ u S",
+            "en": "Include n∥ in S",
         },
         "label.medium": {"ru": "Среда для Т", "sr": "Okruženje za T", "en": "Medium for T"},
         "label.temperature": {"ru": "Температура, °C", "sr": "Temperatura, °C", "en": "Temperature, °C"},
@@ -210,10 +233,21 @@ class CableCalcApp(tk.Tk):
         },
         "column.medium": {"ru": "Среда", "sr": "Okruženje", "en": "Medium"},
         "column.limit": {"ru": "Limit ΔU %", "sr": "Limit ΔU %", "en": "Limit ΔU %"},
+        "column.sigma": {"ru": "ϭ", "sr": "ϭ", "en": "ϭ"},
         "status.ok": {"ru": "OK", "sr": "OK", "en": "OK"},
         "status.fail": {"ru": "NE", "sr": "NE", "en": "NO"},
         "status.na": {"ru": "N/A", "sr": "N/A", "en": "N/A"},
         "status.no_data": {"ru": "Нет данных", "sr": "Nema podataka", "en": "No data"},
+        "warning.voltage_phase": {
+            "ru": "При U=230 В трёхфазное подключение (nž=3) недопустимо. Выберите U=400 В или измените число жил.",
+            "sr": "Za U=230 V trofazna veza (nž=3) nije dozvoljena. Odaberite U=400 V ili promenite broj žila.",
+            "en": "At 230 V a three-phase setup (nž=3) is invalid. Choose 400 V or change the loaded cores.",
+        },
+        "message.select_fail": {
+            "ru": "Не удалось подобрать параметры. Возможные варианты:\n",
+            "sr": "Nije moguće pronaći parametre. Moguće opcije:\n",
+            "en": "Unable to find suitable parameters. Possible options:\n",
+        },
     }
 
     TOOLTIPS = {
@@ -307,6 +341,11 @@ class CableCalcApp(tk.Tk):
             "sr": "Broj identičnih kablova spojenih paralelno na jedno opterećenje. Dele struju i smanjuju pad napona približno ~1/n∥.",
             "en": "Number of identical cables connected in parallel to one load. Split the current and reduce voltage drop roughly ~1/n∥.",
         },
+        "checkbox.consider_parallel": {
+            "ru": "Включает параллельные кабели в расчёт коэффициента группировки S (Kn).",
+            "sr": "Uključuje paralelne kablove u proračun faktora grupisanja S (Kn).",
+            "en": "Includes parallel cables when evaluating grouping factor S (Kn).",
+        },
         "label.medium": {
             "ru": "Среда для температурного коэффициента (воздух или грунт).",
             "sr": "Okruženje za temperaturni koeficijent (vazduh ili tlo).",
@@ -393,6 +432,7 @@ class CableCalcApp(tk.Tk):
         "Нагруженные жилы (nž)": "label.loaded_cores",
         "Кабелей в группе (для S)": "label.circuits",
         "Параллельные кабели (n∥)": "label.parallel",
+        "Учитывать n∥ в S": "checkbox.consider_parallel",
         "Среда для Т": "label.medium",
         "Температура, °C": "label.temperature",
         "S": "label.s",
@@ -447,6 +487,7 @@ class CableCalcApp(tk.Tk):
         "I2 [A]": "column.i2",
         "Icalc [A]": "column.icalc",
         "R_base [Ω/km]": "column.rbase",
+        "ϭ": "column.sigma",
         "Iz [A]": "column.iz",
         "ΔU %": "column.drop",
         "Ukupni ΔU %": "column.total_drop",
@@ -552,7 +593,19 @@ class CableCalcApp(tk.Tk):
 
     RESISTIVITY_20 = {"Cu": 0.017241, "Al": 0.028264}
     TEMP_COEFF = {"Cu": 0.00393, "Al": 0.00403}
-    REACTANCE_PER_KM = {"default": 0.08, "D": 0.09}
+    REACTANCE_PER_KM = {
+        "default": 0.08,
+        "D": 0.09,
+        ("D", "≤95"): 0.09,
+        ("D", "≤240"): 0.085,
+        ("D", ">240"): 0.08,
+        ("C", "≤95"): 0.08,
+        ("C", "≤240"): 0.077,
+        ("C", ">240"): 0.074,
+        ("F", "≤95"): 0.08,
+        ("F", "≤240"): 0.078,
+        ("F", ">240"): 0.075,
+    }
 
     AMPACITY_BASE = {
         "A1": {
@@ -571,6 +624,9 @@ class CableCalcApp(tk.Tk):
             150.0: 265.0,
             185.0: 301.0,
             240.0: 352.0,
+            300.0: 395.0,
+            400.0: 450.0,
+            500.0: 500.0,
         },
         "A2": {
             1.5: 18.0,
@@ -588,6 +644,9 @@ class CableCalcApp(tk.Tk):
             150.0: 285.0,
             185.0: 324.0,
             240.0: 380.0,
+            300.0: 425.0,
+            400.0: 490.0,
+            500.0: 550.0,
         },
         "B1": {
             1.5: 19.0,
@@ -605,6 +664,9 @@ class CableCalcApp(tk.Tk):
             150.0: 300.0,
             185.0: 344.0,
             240.0: 404.0,
+            300.0: 460.0,
+            400.0: 525.0,
+            500.0: 590.0,
         },
         "B2": {
             1.5: 21.0,
@@ -622,6 +684,9 @@ class CableCalcApp(tk.Tk):
             150.0: 323.0,
             185.0: 370.0,
             240.0: 435.0,
+            300.0: 495.0,
+            400.0: 565.0,
+            500.0: 630.0,
         },
         "C": {
             1.5: 20.0,
@@ -639,6 +704,9 @@ class CableCalcApp(tk.Tk):
             150.0: 309.0,
             185.0: 355.0,
             240.0: 415.0,
+            300.0: 480.0,
+            400.0: 555.0,
+            500.0: 625.0,
         },
         "D": {
             1.5: 25.0,
@@ -656,6 +724,9 @@ class CableCalcApp(tk.Tk):
             150.0: 340.0,
             185.0: 385.0,
             240.0: 455.0,
+            300.0: 520.0,
+            400.0: 600.0,
+            500.0: 680.0,
         },
         "E": {
             1.5: 25.0,
@@ -673,6 +744,9 @@ class CableCalcApp(tk.Tk):
             150.0: 356.0,
             185.0: 402.0,
             240.0: 467.0,
+            300.0: 535.0,
+            400.0: 615.0,
+            500.0: 700.0,
         },
         "F": {
             1.5: 29.0,
@@ -690,6 +764,9 @@ class CableCalcApp(tk.Tk):
             150.0: 476.0,
             185.0: 546.0,
             240.0: 640.0,
+            300.0: 720.0,
+            400.0: 820.0,
+            500.0: 920.0,
         },
         "G": {
             1.5: 27.0,
@@ -707,6 +784,9 @@ class CableCalcApp(tk.Tk):
             150.0: 446.0,
             185.0: 511.0,
             240.0: 598.0,
+            300.0: 670.0,
+            400.0: 760.0,
+            500.0: 850.0,
         },
     }
 
@@ -888,6 +968,7 @@ class CableCalcApp(tk.Tk):
         "I2 [A]",
         "Icalc [A]",
         "R_base [Ω/km]",
+        "ϭ",
         "Iz [A]",
         "ΔU %",
         "Ukupni ΔU %",
@@ -954,6 +1035,8 @@ class CableCalcApp(tk.Tk):
         self._notebook: ttk.Notebook | None = None
         self._tabs: dict[str, ttk.Frame] = {}
         self._last_icalc: float | None = None
+        self._consider_parallel_in_s = tk.BooleanVar(value=False)
+        self._voltage_phase_warning_shown = False
 
         self._build_menu()
         self._build_layout()
@@ -1279,6 +1362,14 @@ class CableCalcApp(tk.Tk):
             self._input_styles[label] = original_style
             self._attach_tooltip(widget, label_key)
 
+        extra_row = rows_per_column
+        check_button = ttk.Checkbutton(grid, text="", variable=self._consider_parallel_in_s)
+        check_button.grid(row=extra_row, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+        self._bind_text(lambda value, widget=check_button: widget.configure(text=value), "checkbox.consider_parallel")
+        self._attach_tooltip(check_button, "checkbox.consider_parallel")
+        self._input_widgets["Учитывать n∥ в S"] = check_button
+        self._input_styles["Учитывать n∥ в S"] = check_button.cget("style") or check_button.winfo_class()
+
         pi_var = self._form_values["Pi, W"]
         kj_var = self._form_values["Kj"]
         pi_var.trace_add("write", self._update_pj_display)
@@ -1335,9 +1426,23 @@ class CableCalcApp(tk.Tk):
         button_frame = ttk.Frame(parent)
         button_frame.pack(fill=tk.X, pady=(10, 0))
 
+        select_button = ttk.Button(button_frame, text="", command=self.select_optimal_parameters)
+        select_button.pack(side=tk.LEFT, padx=(0, 5))
+        self._bind_text(
+            lambda value, widget=select_button: widget.configure(text=value), "button.select_optimal"
+        )
+
         add_button = ttk.Button(button_frame, text="", command=self.add_row)
         add_button.pack(side=tk.LEFT, padx=(0, 5))
         self._bind_text(lambda value, widget=add_button: widget.configure(text=value), "button.add_row")
+
+        load_button = ttk.Button(button_frame, text="", command=self.load_selected_row)
+        load_button.pack(side=tk.LEFT, padx=(0, 5))
+        self._bind_text(lambda value, widget=load_button: widget.configure(text=value), "button.load_row")
+
+        delete_button = ttk.Button(button_frame, text="", command=self.remove_selected_row)
+        delete_button.pack(side=tk.LEFT, padx=(0, 5))
+        self._bind_text(lambda value, widget=delete_button: widget.configure(text=value), "button.remove_row")
 
         clear_button = ttk.Button(button_frame, text="", command=self.clear_table)
         clear_button.pack(side=tk.LEFT)
@@ -1374,6 +1479,7 @@ class CableCalcApp(tk.Tk):
             if name in {"Pj", "S", "T"}:
                 continue
             var.trace_add("write", self._update_intermediate_results)
+        self._consider_parallel_in_s.trace_add("write", self._update_intermediate_results)
         self._update_intermediate_results()
 
     def _try_parse_float(self, value: str) -> float | None:
@@ -1397,6 +1503,19 @@ class CableCalcApp(tk.Tk):
             messagebox.showerror("Ошибка ввода", f"Поле '{field_name}' содержит недопустимое значение: {value}")
             logging.error("Некорректное значение '%s' в поле '%s'", value, field_name)
             return None
+
+    def _fmt(self, value: float | None, digits: int = 2) -> str:
+        if value is None:
+            return "—"
+        try:
+            if not math.isfinite(value):
+                return "—"
+        except TypeError:
+            return "—"
+        formatted = f"{value:.{digits}f}"
+        if self._language.get() in {"ru", "sr"}:
+            formatted = formatted.replace(".", ",")
+        return formatted
 
     def _lookup_ampacity(
         self, insulation_key: str, conductor: str, laying: str, area: float, loaded_cores: int
@@ -1491,7 +1610,16 @@ class CableCalcApp(tk.Tk):
         else:
             r_per_km = (rho_theta / area) * 1000.0
 
-        x_per_km = self.REACTANCE_PER_KM.get(laying, self.REACTANCE_PER_KM["default"])
+        bucket = "≤95"
+        if area > 240:
+            bucket = ">240"
+        elif area > 95:
+            bucket = "≤240"
+        x_per_km = self.REACTANCE_PER_KM.get((laying, bucket))
+        if x_per_km is None:
+            x_per_km = self.REACTANCE_PER_KM.get(laying)
+        if x_per_km is None:
+            x_per_km = self.REACTANCE_PER_KM.get("default", 0.08)
         return r_per_km, x_per_km
 
     def _drop_pct(
@@ -1537,123 +1665,172 @@ class CableCalcApp(tk.Tk):
         recs: list[str] = []
         if not icalc_total or S <= 0 or T <= 0:
             return recs
-        parallel_count = max(n_parallel, 1)
-        current_per_cable = icalc_total / parallel_count
 
-        for a in self.STANDARD_SECTIONS:
-            if a < (current_area or 0):
+        parallel_count = max(n_parallel, 1)
+        current_per_cable = icalc_total / parallel_count if parallel_count else icalc_total
+        min_section = max(current_area or 0, self.STANDARD_SECTIONS[0])
+
+        def fmt(value: float, digits: int = 2) -> str:
+            return self._fmt(value, digits=digits)
+
+        def candidate_description(action: str, area_val: float, method_val: str, iz_one: float, drop_val: float) -> str:
+            digits = 0 if float(area_val).is_integer() else 1
+            area_str = fmt(area_val, digits=digits)
+            iz_total = iz_one * parallel_count
+            return (
+                f"{action} {area_str} мм² (метод {method_val}) → "
+                f"Iz_tot≈{fmt(iz_total, digits=0)} A, ΔU≈{fmt(drop_val)}%"
+            )
+
+        # 1) Increase section within same method/insulation
+        best_section_line = None
+        for area_candidate in self.STANDARD_SECTIONS:
+            if area_candidate < min_section:
                 continue
-            iz_base = self._lookup_ampacity(insulation_key, conductor, method, a, loaded_cores)
+            iz_base = self._lookup_ampacity(insulation_key, conductor, method, area_candidate, loaded_cores)
             if not iz_base:
                 continue
             iz_one = iz_base * S * T
             if iz_one < current_per_cable:
                 continue
-            d = self._drop_pct(
+            drop_val = self._drop_pct(
                 U,
                 cos_phi,
                 L,
                 conductor,
                 insulation_theta,
-                a,
+                area_candidate,
                 method,
                 loaded_cores,
                 parallel_count,
                 icalc_total,
             )
-            if limit_pct is None or d <= limit_pct:
-                recs.append(
-                    f"Увеличить сечение до {a} мм² → Iz_tot≈{iz_one * parallel_count:.0f} A, ΔU≈{d:.2f}%"
-                )
-                return recs
+            if limit_pct is not None and drop_val > limit_pct:
+                continue
+            best_section_line = candidate_description("Увеличить сечение до", area_candidate, method, iz_one, drop_val)
+            break
+        if best_section_line:
+            recs.append(best_section_line)
 
+        # 2) Change method according to preference
+        best_method_line = None
         for m in self.METHOD_PREFERENCE:
             if m == method:
                 continue
-            for a in self.STANDARD_SECTIONS:
-                iz_base = self._lookup_ampacity(insulation_key, conductor, m, a, loaded_cores)
+            for area_candidate in self.STANDARD_SECTIONS:
+                if area_candidate < min_section:
+                    continue
+                iz_base = self._lookup_ampacity(insulation_key, conductor, m, area_candidate, loaded_cores)
                 if not iz_base:
                     continue
                 iz_one = iz_base * S * T
                 if iz_one < current_per_cable:
                     continue
-                d = self._drop_pct(
+                drop_val = self._drop_pct(
                     U,
                     cos_phi,
                     L,
                     conductor,
                     insulation_theta,
-                    a,
+                    area_candidate,
                     m,
                     loaded_cores,
                     parallel_count,
                     icalc_total,
                 )
-                if limit_pct is None or d <= limit_pct:
-                    recs.append(
-                        f"Сменить метод на {m} и сечение {a} мм² → Iz_tot≈{iz_one * parallel_count:.0f} A, ΔU≈{d:.2f}%"
-                    )
-                    return recs
+                if limit_pct is not None and drop_val > limit_pct:
+                    continue
+                best_method_line = candidate_description("Сменить метод на", area_candidate, m, iz_one, drop_val)
+                break
+            if best_method_line:
+                break
+        if best_method_line:
+            recs.append(best_method_line)
 
+        # 3) Switch to XLPE if currently PVC
         if insulation_key == "PVC":
             xlpe_meta = self.INSULATION_META.get("XLPE/EPR (90°C)")
-            xlpe_theta = xlpe_meta["theta"] if xlpe_meta else 90.0
-            for a in self.STANDARD_SECTIONS:
-                iz_base = self._lookup_ampacity("XLPE", conductor, method, a, loaded_cores)
+            xlpe_theta = xlpe_meta.get("theta", 90.0) if xlpe_meta else 90.0
+            best_xlpe_line = None
+            for area_candidate in self.STANDARD_SECTIONS:
+                if area_candidate < min_section:
+                    continue
+                iz_base = self._lookup_ampacity("XLPE", conductor, method, area_candidate, loaded_cores)
                 if not iz_base:
                     continue
                 iz_one = iz_base * S * T
                 if iz_one < current_per_cable:
                     continue
-                d = self._drop_pct(
+                drop_val = self._drop_pct(
                     U,
                     cos_phi,
                     L,
                     conductor,
                     xlpe_theta,
-                    a,
+                    area_candidate,
                     method,
                     loaded_cores,
                     parallel_count,
                     icalc_total,
                 )
-                if limit_pct is None or d <= limit_pct:
-                    recs.append(
-                        f"Перейти на XLPE и {a} мм² → Iz_tot≈{iz_one * parallel_count:.0f} A, ΔU≈{d:.2f}%"
-                    )
-                    return recs
+                if limit_pct is not None and drop_val > limit_pct:
+                    continue
+                digits = 0 if float(area_candidate).is_integer() else 1
+                area_str = fmt(area_candidate, digits=digits)
+                iz_total = iz_one * parallel_count
+                best_xlpe_line = (
+                    f"Перейти на XLPE и {area_str} мм² (метод {method}) → "
+                    f"Iz_tot≈{fmt(iz_total, digits=0)} A, ΔU≈{fmt(drop_val)}%"
+                )
+                break
+            if best_xlpe_line:
+                recs.append(best_xlpe_line)
 
+        # 4) Increase number of parallel cables to meet voltage drop
         if limit_pct is not None:
-            a0 = max(current_area or self.STANDARD_SECTIONS[0], self.STANDARD_SECTIONS[0])
-            d_now = self._drop_pct(
+            base_area = max(min_section, current_area or self.STANDARD_SECTIONS[0])
+            drop_current = self._drop_pct(
                 U,
                 cos_phi,
                 L,
                 conductor,
                 insulation_theta,
-                a0,
+                base_area,
                 method,
                 loaded_cores,
                 parallel_count,
                 icalc_total,
             )
-            if d_now > max(limit_pct, 1e-9):
-                denom = max(limit_pct, 1e-9)
-                n_needed = max(parallel_count, math.ceil(d_now * parallel_count / denom))
-                if n_needed > parallel_count:
-                    iz_base = self._lookup_ampacity(insulation_key, conductor, method, a0, loaded_cores)
-                    if iz_base:
-                        iz_one = iz_base * S * T
-                        iz_total_display = f"{iz_one * n_needed:.0f}"
-                    else:
-                        iz_total_display = self._("status.no_data")
-                    reduced_drop = d_now * parallel_count / n_needed
-                    recs.append(
-                        f"Разделить на {n_needed} параллельных кабеля {a0} мм² (метод {method}) → Iz_tot≈{iz_total_display} A, ΔU≈{reduced_drop:.2f}%"
-                    )
+            if drop_current > limit_pct:
+                iz_base = self._lookup_ampacity(insulation_key, conductor, method, base_area, loaded_cores)
+                if iz_base:
+                    iz_one = iz_base * S * T
+                    denom = max(limit_pct, 1e-9)
+                    n_needed = max(parallel_count + 1, math.ceil(drop_current * parallel_count / denom))
+                    if iz_one > 0:
+                        max_total = iz_one * n_needed
+                        drop_new = self._drop_pct(
+                            U,
+                            cos_phi,
+                            L,
+                            conductor,
+                            insulation_theta,
+                            base_area,
+                            method,
+                            loaded_cores,
+                            n_needed,
+                            icalc_total,
+                        )
+                        digits = 0 if float(base_area).is_integer() else 1
+                        area_str = fmt(base_area, digits=digits)
+                        recs.append(
+                            f"Разделить на {n_needed} параллельных кабеля {area_str} мм² (метод {method}) → "
+                            f"n∥={n_needed}, Iz_tot≈{fmt(max_total, digits=0)} A, ΔU≈{fmt(drop_new)}%"
+                        )
 
-        recs.append("Снизить число кабелей в группе (для увеличения S) или повысить напряжение.")
-        return recs
+        if not recs:
+            recs.append("Снизить число кабелей в группе (для увеличения S) или повысить напряжение.")
+        return recs[:4]
 
     def _update_pj_display(self, *_: object) -> None:
         pi = self._try_parse_float(self._form_values["Pi, W"].get())
@@ -1662,7 +1839,7 @@ class CableCalcApp(tk.Tk):
             self._form_values["Pj"].set("")
             self._update_intermediate_results()
             return
-        self._form_values["Pj"].set(f"{pi * kj:.2f}")
+        self._form_values["Pj"].set(self._fmt(pi * kj))
         self._update_intermediate_results()
 
     def _set_result_alert(self, key: str, alert: bool) -> None:
@@ -1742,7 +1919,7 @@ class CableCalcApp(tk.Tk):
         drop_key = self._form_values["Ключ ΔU"].get()
         limit_delta = self.DROP_LIMIT_KEYS.get(drop_key)
         if limit_delta is not None:
-            self._intermediate_vars["Limit ΔU %"].set(f"{limit_delta:.2f}")
+            self._intermediate_vars["Limit ΔU %"].set(self._fmt(limit_delta))
         else:
             self._intermediate_vars["Limit ΔU %"].set("—")
 
@@ -1785,9 +1962,13 @@ class CableCalcApp(tk.Tk):
         area = self._try_parse_float(self._form_values["Presek, mm²"].get())
         temperature = self._try_parse_float(self._form_values["Температура, °C"].get())
 
-        group_factor = self._lookup_group_factor(circuits_count)
-        self._form_values["S"].set(f"{group_factor:.2f}")
-        self._intermediate_vars["S"].set(f"{group_factor:.2f}")
+        effective_circuits = circuits_count
+        if self._consider_parallel_in_s.get():
+            effective_circuits = max(1, circuits_count + n_parallel - 1)
+        group_factor = self._lookup_group_factor(effective_circuits)
+        s_display = self._fmt(group_factor)
+        self._form_values["S"].set(s_display if s_display != "—" else "")
+        self._intermediate_vars["S"].set(s_display)
         s_coeff = group_factor
 
         temperature_alert = False
@@ -1802,7 +1983,7 @@ class CableCalcApp(tk.Tk):
             temperature_alert = True
 
         if t_coeff is not None:
-            t_display = f"{t_coeff:.2f}"
+            t_display = self._fmt(t_coeff)
             self._last_temperature_warning = None
         else:
             t_display = ""
@@ -1812,8 +1993,12 @@ class CableCalcApp(tk.Tk):
                 and not self._temperature_editing
             ):
                 self._show_temperature_warning(insulation_meta["key"], medium_key, temperature)
-        self._form_values["T"].set(t_display)
-        self._intermediate_vars["T"].set(t_display or "—")
+        if t_display:
+            self._form_values["T"].set(t_display)
+            self._intermediate_vars["T"].set(t_display)
+        else:
+            self._form_values["T"].set("")
+            self._intermediate_vars["T"].set("—")
         if self._temperature_editing:
             temperature_alert = False
         self._set_entry_alert("Температура, °C", temperature_alert)
@@ -1835,10 +2020,16 @@ class CableCalcApp(tk.Tk):
         except (TypeError, ValueError):
             voltage_value = None
 
+        voltage_alert = voltage_value == 230 and loaded_cores == 3
+        if voltage_alert and not self._voltage_phase_warning_shown:
+            messagebox.showwarning("IEC 60364", self._("warning.voltage_phase"))
+            self._voltage_phase_warning_shown = True
+        self._set_entry_alert("U", voltage_alert)
+
         pj = None
         if pi is not None and kj is not None:
             pj = pi * kj
-            self._intermediate_vars["Pj, W"].set(f"{pj:.2f}")
+            self._intermediate_vars["Pj, W"].set(self._fmt(pj))
 
         cos_alert = False
         if cos_phi is not None:
@@ -1869,7 +2060,7 @@ class CableCalcApp(tk.Tk):
             denominator = phase_factor * voltage_value * cos_phi
             if denominator:
                 icalc_total = (pj / eta_coeff) / denominator
-                self._intermediate_vars["Icalc [A]"].set(f"{icalc_total:.3f}")
+                self._intermediate_vars["Icalc [A]"].set(self._fmt(icalc_total, digits=3))
                 self._last_icalc = icalc_total
                 icalc_per_cable = icalc_total / max(n_parallel, 1)
         else:
@@ -1881,38 +2072,25 @@ class CableCalcApp(tk.Tk):
             r_per_km, x_per_km = self._calculate_line_impedance(
                 conductor, insulation_meta["theta"], area, laying
             )
-            self._intermediate_vars["R_base [Ω/km]"].set(f"{r_per_km:.3f}")
+            self._intermediate_vars["R_base [Ω/km]"].set(self._fmt(r_per_km, digits=3))
 
         base_ampacity = None
-        compat_display = "—"
-        compat_alert = False
         if area is not None and insulation_meta is not None:
             base_ampacity = self._lookup_ampacity(
                 insulation_meta["key"], conductor, laying, area, loaded_cores
             )
-            if base_ampacity is None:
-                compat_display = self._("status.no_data")
-                compat_alert = True
-            else:
-                compat_display = self._("status.ok")
-        elif insulation_meta is not None:
-            compat_display = "—"
-
-        if "Совместимость IEC" in self._intermediate_vars:
-            self._intermediate_vars["Совместимость IEC"].set(compat_display)
-            self._set_result_alert("Совместимость IEC", compat_alert)
 
         iz_one = None
         if base_ampacity is not None and t_coeff is not None:
             iz_one = base_ampacity * s_coeff * t_coeff
-            self._intermediate_vars["Iz [A]"].set(f"{iz_one:.2f}")
+            self._intermediate_vars["Iz [A]"].set(self._fmt(iz_one))
         elif base_ampacity is None:
             self._intermediate_vars["Iz [A]"].set("—")
 
         in_range_value = "—"
         if icalc_total is not None and iz_one is not None:
             iz_total = iz_one * n_parallel
-            in_range_value = f"{icalc_total:.2f} – {iz_total:.2f}"
+            in_range_value = f"{self._fmt(icalc_total)} – {self._fmt(iz_total)}"
             if iz_total + 1e-9 < icalc_total:
                 in_range_alert = True
         if "Диапазон In [A]" in self._intermediate_vars:
@@ -1947,7 +2125,9 @@ class CableCalcApp(tk.Tk):
             sin_phi = math.sqrt(max(0.0, 1.0 - min(1.0, cos_phi) ** 2))
             impedance_drop = r_per_meter * cos_phi + x_per_meter * sin_phi
             delta_u = phase_factor * icalc_total * impedance_drop * length * 100.0 / voltage_value
-            self._intermediate_vars["ΔU %"].set(f"{delta_u:.2f}")
+            self._intermediate_vars["ΔU %"].set(self._fmt(delta_u))
+        elif "ΔU %" in self._intermediate_vars:
+            self._intermediate_vars["ΔU %"].set("—")
 
         drop_status = None
         if delta_u is not None and limit_delta is not None:
@@ -1965,14 +2145,14 @@ class CableCalcApp(tk.Tk):
         existing_drop = self._sum_drop_for_circuit(strujni_krug)
         if delta_u is not None:
             total_drop = existing_drop + delta_u
-            self._intermediate_vars["Ukupni ΔU %"].set(f"{total_drop:.2f}")
+            self._intermediate_vars["Ukupni ΔU %"].set(self._fmt(total_drop))
             if limit_delta is not None:
                 total_status = "OK" if total_drop <= limit_delta else "NE"
                 self._set_result_alert("Ukupni ΔU %", total_status == "NE")
             else:
                 self._set_result_alert("Ukupni ΔU %", False)
         elif existing_drop > 0:
-            self._intermediate_vars["Ukupni ΔU %"].set(f"{existing_drop:.2f}")
+            self._intermediate_vars["Ukupni ΔU %"].set(self._fmt(existing_drop))
 
         in_value = self._try_parse_float(self._form_values["In, A"].get())
         k_value = self._try_parse_float(self._form_values["k"].get())
@@ -1990,7 +2170,7 @@ class CableCalcApp(tk.Tk):
 
         if in_value is not None and k_value is not None:
             i2_value = in_value * k_value
-            self._intermediate_vars["I2 [A]"].set(f"{i2_value:.2f}")
+            self._intermediate_vars["I2 [A]"].set(self._fmt(i2_value))
         else:
             self._intermediate_vars["I2 [A]"].set("—")
 
@@ -2013,6 +2193,24 @@ class CableCalcApp(tk.Tk):
         self._set_result_alert("Защита", protection_alert)
         self._set_result_alert("Диапазон In [A]", in_range_alert or protection_alert)
         self._set_entry_alert("In, A", protection_alert)
+
+        if "Совместимость IEC" in self._intermediate_vars:
+            if base_ampacity is None:
+                compat_display = self._("status.na")
+                compat_alert = False
+            else:
+                statuses = [ampacity_status, drop_status, protection_status]
+                if all(status == "OK" for status in statuses):
+                    compat_display = self._("status.ok")
+                    compat_alert = False
+                elif any(status == "NE" for status in statuses):
+                    compat_display = self._("status.fail")
+                    compat_alert = True
+                else:
+                    compat_display = self._("status.na")
+                    compat_alert = False
+            self._intermediate_vars["Совместимость IEC"].set(compat_display)
+            self._set_result_alert("Совместимость IEC", compat_alert)
 
         recommendations: list[str] = []
         rec_var = self._intermediate_vars.get("Рекомендации")
@@ -2065,6 +2263,299 @@ class CableCalcApp(tk.Tk):
                 except (TypeError, ValueError):
                     continue
         return total
+
+    def select_optimal_parameters(self) -> None:
+        self._update_intermediate_results()
+
+        insulation_label = self._form_values["Tip-IZOLACIJE"].get()
+        insulation_meta = self.INSULATION_META.get(insulation_label)
+        if not insulation_meta:
+            messagebox.showerror("IEC 60364", "Не выбрана изоляция кабеля.")
+            return
+
+        conductor = self._form_values["Tip-PROVODNIKA"].get()
+        method = self._form_values["Način polaganja"].get().strip()
+
+        try:
+            loaded_cores = int(self._form_values["Нагруженные жилы (nž)"].get())
+            if loaded_cores not in (2, 3):
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("IEC 60364", "Укажите число нагруженных жил 2 или 3.")
+            return
+
+        try:
+            circuits_count = int(self._form_values["Кабелей в группе (для S)"].get())
+            if circuits_count < 1:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("IEC 60364", "Число кабелей в группе должно быть не менее 1.")
+            return
+
+        try:
+            n_parallel = int(self._form_values["Параллельные кабели (n∥)"].get())
+            if n_parallel < 1:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("IEC 60364", "Число параллельных кабелей должно быть не менее 1.")
+            return
+
+        pi = self._parse_float(self._form_values["Pi, W"].get(), "Pi, W")
+        if pi is None:
+            return
+        kj = self._parse_float(self._form_values["Kj"].get(), "Kj")
+        if kj is None:
+            return
+        eta = self._parse_float(self._form_values["η"].get(), "η")
+        if eta is None:
+            return
+        if not (0 < eta <= 1):
+            messagebox.showerror("IEC 60364", "КПД η должен быть в диапазоне (0;1].")
+            return
+
+        cos_phi = self._parse_float(self._form_values["cos φ"].get(), "cos φ")
+        if cos_phi is None or not (0 < cos_phi <= 1):
+            messagebox.showerror("IEC 60364", "cos φ должен быть в диапазоне (0;1].")
+            return
+
+        length = self._parse_float(self._form_values["Dužina L, m"].get(), "Dužina L, m")
+        if length is None or length < 0:
+            messagebox.showerror("IEC 60364", "Длина линии должна быть неотрицательной.")
+            return
+
+        voltage_str = self._form_values["U"].get()
+        try:
+            voltage_value = int(voltage_str)
+        except (TypeError, ValueError):
+            messagebox.showerror("IEC 60364", "Выберите номинальное напряжение.")
+            return
+
+        medium_key = self._medium_selected_key
+        temperature = self._try_parse_float(self._form_values["Температура, °C"].get())
+        t_coeff = 1.0
+        if temperature is not None:
+            temp_factor = self._lookup_temperature_factor(insulation_meta["key"], medium_key, temperature)
+            if temp_factor is None or temp_factor <= 0:
+                messagebox.showerror(
+                    "IEC 60364",
+                    "Температура вне табличного диапазона IEC 60364. Уточните значение, чтобы вычислить коэффициент Kt.",
+                )
+                return
+            t_coeff = temp_factor
+
+        effective_circuits = circuits_count
+        if self._consider_parallel_in_s.get():
+            effective_circuits = max(1, circuits_count + n_parallel - 1)
+        s_coeff = self._lookup_group_factor(effective_circuits)
+
+        pj = pi * kj
+        phase_factor = 2.0 if loaded_cores == 2 else math.sqrt(3)
+        denominator = phase_factor * voltage_value * cos_phi
+        if not denominator:
+            messagebox.showerror("IEC 60364", "Комбинация параметров приводит к делению на ноль.")
+            return
+        icalc_total = (pj / eta) / denominator
+
+        if icalc_total <= 0:
+            messagebox.showerror("IEC 60364", "Расчётный ток должен быть больше нуля для подбора параметров.")
+            return
+
+        limit_pct = self.DROP_LIMIT_KEYS.get(self._form_values["Ключ ΔU"].get())
+        k_value = self._try_parse_float(self._form_values["k"].get())
+        if k_value is None or k_value <= 0:
+            k_value = 1.45
+
+        breaker_values: list[tuple[str, float]] = []
+        for item in self.STANDARD_BREAKER_RATINGS:
+            item = item.strip()
+            if not item:
+                continue
+            try:
+                breaker_values.append((item, float(item.replace(",", "."))))
+            except ValueError:
+                continue
+
+        if not breaker_values:
+            messagebox.showerror("IEC 60364", "Не заданы номиналы автоматов защиты.")
+            return
+
+        insulation_key = insulation_meta["key"]
+        insulation_theta = insulation_meta["theta"]
+
+        success_combo: tuple[float, str, float, float] | None = None
+        fallback_candidates: list[tuple[float, float, float, float, float, str]] = []
+
+        for area_candidate in self.STANDARD_SECTIONS:
+            if area_candidate <= 0:
+                continue
+            iz_base = self._lookup_ampacity(insulation_key, conductor, method, area_candidate, loaded_cores)
+            if not iz_base:
+                continue
+            iz_one = iz_base * s_coeff * t_coeff
+            iz_total = iz_one * max(n_parallel, 1)
+            if iz_total <= 0:
+                continue
+            drop_val = self._drop_pct(
+                voltage_value,
+                cos_phi,
+                length,
+                conductor,
+                insulation_theta,
+                area_candidate,
+                method,
+                loaded_cores,
+                n_parallel,
+                icalc_total,
+            )
+            for breaker_str, breaker_value in breaker_values:
+                if breaker_value <= 0:
+                    continue
+                within_current = icalc_total <= breaker_value <= iz_total
+                drop_ok = limit_pct is None or drop_val <= limit_pct
+                i2_value = breaker_value * k_value
+                protection_ok = i2_value <= 1.45 * iz_total
+                if within_current and drop_ok and protection_ok:
+                    success_combo = (area_candidate, breaker_str, iz_total, drop_val)
+                    break
+
+                over_in_low = max(0.0, icalc_total - breaker_value)
+                over_in_high = max(0.0, breaker_value - iz_total)
+                over_iz = max(0.0, icalc_total - iz_total)
+                over_drop = max(0.0, drop_val - (limit_pct or drop_val)) if limit_pct is not None else 0.0
+                over_i2 = max(0.0, i2_value - 1.45 * iz_total)
+                metric = over_in_low + over_in_high + over_iz + over_drop + over_i2
+                fallback_candidates.append(
+                    (
+                        metric,
+                        area_candidate,
+                        breaker_value,
+                        drop_val,
+                        iz_total,
+                        breaker_str,
+                    )
+                )
+            if success_combo:
+                break
+
+        if success_combo:
+            area_candidate, breaker_str, iz_total, drop_val = success_combo
+            if float(area_candidate).is_integer():
+                area_text = str(int(area_candidate))
+            else:
+                area_text = str(area_candidate)
+            self._form_values["Presek, mm²"].set(area_text)
+            self._form_values["In, A"].set(breaker_str)
+            self._update_intermediate_results()
+            return
+
+        if not fallback_candidates:
+            messagebox.showinfo("IEC 60364", self._("message.select_fail") + "нет доступных комбинаций.")
+            return
+
+        fallback_candidates.sort(key=lambda item: (item[0], item[1], item[2]))
+        top_items = fallback_candidates[:3]
+        lines: list[str] = []
+        for metric, area_candidate, breaker_value, drop_val, iz_total, breaker_str in top_items:
+            digits = 0 if float(area_candidate).is_integer() else 1
+            area_display = self._fmt(area_candidate, digits=digits)
+            iz_display = self._fmt(iz_total, digits=0)
+            drop_display = self._fmt(drop_val)
+            issues: list[str] = []
+            if limit_pct is not None and drop_val > limit_pct:
+                issues.append(f"ΔU +{self._fmt(drop_val - limit_pct)}%")
+            if breaker_value < icalc_total:
+                issues.append(f"In < Ib на {self._fmt(icalc_total - breaker_value)} A")
+            if breaker_value > iz_total:
+                issues.append(f"In > Iz_tot на {self._fmt(breaker_value - iz_total)} A")
+            if breaker_value * k_value > 1.45 * iz_total:
+                issues.append(f"I2>{self._fmt(1.45 * iz_total)} A")
+            issue_text = "; ".join(issues) if issues else "минимальные отклонения"
+            lines.append(
+                f"• {area_display} мм² / In={breaker_str} A → Iz_tot≈{iz_display} A, ΔU≈{drop_display}% ({issue_text})"
+            )
+
+        message = self._("message.select_fail") + "\n".join(lines)
+        messagebox.showinfo("IEC 60364", message)
+
+    def remove_selected_row(self) -> None:
+        if not hasattr(self, "tree"):
+            return
+        selected = self.tree.selection()
+        if not selected:
+            return
+        indexed = sorted((self.tree.index(item), item) for item in selected)
+        for _, item in indexed:
+            self.tree.delete(item)
+        for index, _ in reversed(indexed):
+            if 0 <= index < len(self._table_data):
+                del self._table_data[index]
+        self._update_intermediate_results()
+
+    def load_selected_row(self) -> None:
+        if not hasattr(self, "tree"):
+            return
+        selected = self.tree.selection()
+        if not selected:
+            return
+        row_index = self.tree.index(selected[0])
+        if not (0 <= row_index < len(self._table_data)):
+            return
+        row = self._table_data[row_index]
+
+        field_map = {
+            "Strujni krug": "Strujni krug",
+            "Deonica OD": "OD",
+            "Deonica DO": "DO",
+            "Tip-IZOLACIJE": "E",
+            "Tip-PROVODNIKA": "F",
+            "Oznaka-tip-KABLA": "G",
+            "Pi, W": "Pi",
+            "Kj": "Kj",
+            "η": "η",
+            "U": "U",
+            "cos φ": "cosφ",
+            "Dužina L, m": "L",
+            "Presek, mm²": "Presek",
+            "Način polaganja": "Način polaganja",
+            "Нагруженные жилы (nž)": "nž",
+            "Кабелей в группе (для S)": "Кабелей в группе (S)",
+            "Параллельные кабели (n∥)": "n∥",
+            "In, A": "In [A]",
+            "k": "k",
+            "Ключ ΔU": "Ключ",
+        }
+
+        current_insulation = self._form_values.get("Tip-IZOLACIJE")
+        current_insulation_value = current_insulation.get() if current_insulation else ""
+
+        for field, column in field_map.items():
+            if field not in self._form_values:
+                continue
+            value = str(row.get(column, ""))
+            if field == "Presek, mm²" and value:
+                numeric = self._try_parse_float(value)
+                if numeric is not None:
+                    value = str(int(numeric)) if float(numeric).is_integer() else str(numeric)
+            if field in {"Pi, W", "Kj", "η", "cos φ", "Dužina L, m"} and value:
+                numeric = self._try_parse_float(value)
+                if numeric is not None:
+                    value = str(numeric)
+            widget = self._input_widgets.get(field)
+            if isinstance(widget, ttk.Combobox):
+                current_values = list(widget.cget("values"))
+                if value and value not in current_values:
+                    current_values.append(value)
+                    widget.configure(values=current_values)
+                    self._combobox_values[field] = current_values
+            if field == "Tip-IZOLACIJE" and value:
+                if value in self.INSULATION_META:
+                    self._form_values[field].set(value)
+                else:
+                    self._form_values[field].set(current_insulation_value)
+            else:
+                self._form_values[field].set(value)
+
+        self._update_intermediate_results()
 
     def add_row(self) -> None:
         self._update_intermediate_results()
@@ -2155,7 +2646,10 @@ class CableCalcApp(tk.Tk):
             logging.error("Некорректное значение параллельных кабелей: %s", parallel_value)
             return
 
-        s_coeff = self._lookup_group_factor(circuits_count)
+        effective_circuits = circuits_count
+        if self._consider_parallel_in_s.get():
+            effective_circuits = max(1, circuits_count + n_parallel - 1)
+        s_coeff = self._lookup_group_factor(effective_circuits)
 
         temperature = self._try_parse_float(self._form_values["Температура, °C"].get())
         t_coeff = 1.0
@@ -2172,7 +2666,7 @@ class CableCalcApp(tk.Tk):
                 return
 
         pj = pi * kj
-        self._form_values["Pj"].set(f"{pj:.2f}")
+        self._form_values["Pj"].set(self._fmt(pj))
 
         voltage_value = int(voltage)
         phase_factor = 2.0 if loaded_cores == 2 else math.sqrt(3)
@@ -2225,10 +2719,8 @@ class CableCalcApp(tk.Tk):
 
         if iz_numeric is not None:
             ampacity_ok = "OK" if icalc_per_cable <= iz_numeric else "NE"
-            iz_display = f"{iz_numeric:.2f}"
         else:
             ampacity_ok = "N/A"
-            iz_display = ""
 
         existing_drop = self._sum_drop_for_circuit(strujni_krug)
         total_drop = existing_drop + delta_u
@@ -2257,6 +2749,10 @@ class CableCalcApp(tk.Tk):
             if rec_msg and rec_msg.strip() != "—":
                 messagebox.showinfo(self._("dialog.recommendations.title"), rec_msg)
 
+        sigma = None
+        if conductor in self.RESISTIVITY_20 and self.RESISTIVITY_20[conductor] > 0:
+            sigma = 1.0 / self.RESISTIVITY_20[conductor]
+
         row_data = {
             "Strujni krug": strujni_krug,
             "OD": od,
@@ -2267,26 +2763,27 @@ class CableCalcApp(tk.Tk):
             "nž": str(loaded_cores),
             "n∥": str(n_parallel),
             "Кабелей в группе (S)": str(circuits_count),
-            "Pi": f"{pi:.2f}",
-            "Kj": f"{kj:.2f}",
-            "η": f"{eta:.3f}",
-            "Pj": f"{pj:.2f}",
+            "Pi": self._fmt(pi),
+            "Kj": self._fmt(kj),
+            "η": self._fmt(eta, digits=3),
+            "Pj": self._fmt(pj),
             "U": voltage,
-            "cosφ": f"{cos_phi:.3f}",
-            "L": f"{length:.2f}",
-            "Presek": f"{area:.2f}",
+            "cosφ": self._fmt(cos_phi, digits=3),
+            "L": self._fmt(length),
+            "Presek": self._fmt(area),
             "Način polaganja": laying,
-            "S": f"{s_coeff:.2f}",
-            "T": f"{t_coeff:.2f}",
-            "In [A]": f"{in_value:.2f}" if in_value is not None else "",
-            "k": f"{k_value:.2f}" if k_value is not None else "",
-            "I2 [A]": f"{i2_value:.2f}" if i2_value is not None else "",
-            "Icalc [A]": f"{icalc_total:.3f}",
-            "R_base [Ω/km]": f"{r_per_km:.3f}",
-            "Iz [A]": iz_display,
-            "ΔU %": f"{delta_u:.2f}",
-            "Ukupni ΔU %": f"{total_drop:.2f}",
-            "Limit ΔU %": f"{limit_delta:.2f}",
+            "S": self._fmt(s_coeff),
+            "T": self._fmt(t_coeff),
+            "In [A]": self._fmt(in_value) if in_value is not None else "",
+            "k": self._fmt(k_value) if k_value is not None else "",
+            "I2 [A]": self._fmt(i2_value) if i2_value is not None else "",
+            "Icalc [A]": self._fmt(icalc_total, digits=3),
+            "R_base [Ω/km]": self._fmt(r_per_km, digits=3),
+            "ϭ": self._fmt(sigma, digits=2) if sigma is not None else "—",
+            "Iz [A]": self._fmt(iz_numeric) if iz_numeric is not None else "—",
+            "ΔU %": self._fmt(delta_u),
+            "Ukupni ΔU %": self._fmt(total_drop),
+            "Limit ΔU %": self._fmt(limit_delta),
             "По току": ampacity_ok,
             "По ΔU": drop_ok,
             "Защита": protection_status,
@@ -2302,6 +2799,7 @@ class CableCalcApp(tk.Tk):
         for item in self.tree.get_children():
             self.tree.delete(item)
         self._table_data.clear()
+        self._update_intermediate_results()
 
     def save_project(self) -> None:
         file_path = filedialog.asksaveasfilename(
@@ -2387,13 +2885,50 @@ class CableCalcApp(tk.Tk):
             return
 
         try:
-            self._write_simple_xlsx(file_path)
+            self._write_workbook(file_path)
             messagebox.showinfo("Экспорт", "Данные успешно сохранены.")
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             messagebox.showerror("Ошибка", f"Не удалось сохранить файл: {exc}")
             logging.error("Ошибка экспорта Excel '%s': %s", file_path, exc)
 
-    def _write_simple_xlsx(self, file_path: str) -> None:
+    def _write_workbook(self, file_path: str) -> None:
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Proračuni"
+
+        header_row = [self._(self.TREE_COLUMN_KEYS.get(col, col)) for col in self.TREE_COLUMNS]
+        worksheet.append(header_row)
+
+        for row in self._table_data:
+            row_values: list[typing.Any] = []
+            for column in self.TREE_COLUMNS:
+                raw = row.get(column, "")
+                if isinstance(raw, (int, float)):
+                    row_values.append(raw)
+                    continue
+                text = str(raw)
+                number = self._try_parse_float(text)
+                if number is not None and text.strip() not in {"", "—"}:
+                    row_values.append(number)
+                else:
+                    row_values.append(text)
+            worksheet.append(row_values)
+
+        worksheet.freeze_panes = "A2"
+        worksheet.auto_filter.ref = worksheet.dimensions
+
+        for idx, column in enumerate(self.TREE_COLUMNS, start=1):
+            max_length = len(header_row[idx - 1])
+            for cell in worksheet.iter_cols(min_col=idx, max_col=idx, min_row=1, max_row=worksheet.max_row)[0]:
+                cell_value = cell.value
+                if cell_value is None:
+                    continue
+                max_length = max(max_length, len(str(cell_value)))
+            worksheet.column_dimensions[get_column_letter(idx)].width = min(max_length + 2, 40)
+
+        workbook.save(file_path)
+
+    def _export_to_xlsx_xml(self, file_path: str) -> None:
         workbook_xml = (
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" "
