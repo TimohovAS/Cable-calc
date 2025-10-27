@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from xml.sax.saxutils import escape
 from zipfile import ZipFile
+import os
 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
@@ -1123,6 +1124,9 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         self._consider_parallel_in_s = tk.BooleanVar(value=False)
         self._voltage_phase_warning_shown = False
 
+        # Load external resources (translations, tooltips, numeric tables)
+        self._load_external_resources()
+
         self._build_menu()
         self._build_layout()
 
@@ -1187,6 +1191,107 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
 
         self._update_medium_options()
         self._update_help_text()
+
+    def _resource_path(self, *parts: str) -> str:
+        base = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(base, "data", *parts)
+
+    def _load_json_file(self, rel_path: str) -> typing.Any:
+        try:
+            with open(self._resource_path(rel_path), "r", encoding="utf-8") as f:
+                return json.load(f)
+        except OSError:
+            return None
+        except json.JSONDecodeError:
+            logging.error("JSON parse error for %s", rel_path)
+            return None
+
+    def _load_external_resources(self) -> None:
+        # Translations
+        translations = self._load_json_file("translations.json")
+        if isinstance(translations, dict):
+            self.TRANSLATIONS = translations
+        tooltips = self._load_json_file("tooltips.json")
+        if isinstance(tooltips, dict):
+            self.TOOLTIPS = tooltips
+        # Help texts
+        helps: dict[str, str] = {}
+        for code in ("ru", "sr", "en"):
+            try:
+                with open(self._resource_path("help", f"{code}.txt"), "r", encoding="utf-8") as f:
+                    helps[code] = f.read()
+            except OSError:
+                continue
+        if helps:
+            self.HELP_TEXTS = helps
+
+        # Tables and numeric data
+        tables = self._load_json_file("tables.json")
+        if not isinstance(tables, dict):
+            return
+        self.INSULATION_OPTIONS = tables.get("INSULATION_OPTIONS", [])
+        self.INSULATION_META = tables.get("INSULATION_META", {})
+        self.CONDUCTOR_TYPES = tables.get("CONDUCTOR_TYPES", [])
+        self.VOLTAGE_LEVELS = tables.get("VOLTAGE_LEVELS", [])
+        self.TEMPERATURE_MEDIA = tables.get("TEMPERATURE_MEDIA", {})
+        self.INSTALLATION_METHODS = tables.get("INSTALLATION_METHODS", [])
+        self.STANDARD_SECTIONS = tables.get("STANDARD_SECTIONS", [])
+        self.METHOD_PREFERENCE = tables.get("METHOD_PREFERENCE", [])
+        self.STANDARD_CROSS_SECTIONS = tables.get("STANDARD_CROSS_SECTIONS", [])
+        self.STANDARD_BREAKER_RATINGS = tables.get("STANDARD_BREAKER_RATINGS", [])
+        self.DROP_LIMIT_KEYS = tables.get("DROP_LIMIT_KEYS", {})
+        self.RESISTIVITY_20 = tables.get("RESISTIVITY_20", {})
+        self.TEMP_COEFF = tables.get("TEMP_COEFF", {})
+        self.REACTANCE_DATA = tables.get("REACTANCE", {})
+
+        # Convert dicts that require numeric keys
+        amp_base_raw = tables.get("AMPACITY_BASE", {})
+        amp_base: dict[str, dict[float, float]] = {}
+        for m, inner in amp_base_raw.items():
+            try:
+                amp_base[m] = {float(k): float(v) for k, v in inner.items()}
+            except Exception:
+                continue
+        if amp_base:
+            self.AMPACITY_BASE = amp_base
+
+        self.AMPACITY_INSULATION_FACTORS = tables.get("AMPACITY_INSULATION_FACTORS", {})
+
+        loaded_raw = tables.get("AMPACITY_LOADED_FACTORS", {})
+        loaded: dict[str, dict[int, float]] = {}
+        for m, inner in loaded_raw.items():
+            try:
+                loaded[m] = {int(k): float(v) for k, v in inner.items()}
+            except Exception:
+                continue
+        if loaded:
+            self.AMPACITY_LOADED_FACTORS = loaded
+
+        grouping_raw = tables.get("GROUPING_FACTORS", {})
+        try:
+            self.GROUPING_FACTORS = {int(k): float(v) for k, v in grouping_raw.items()}
+        except Exception:
+            pass
+
+        ktv_raw = tables.get("KT_V_TABLE", {})
+        ktv: dict[str, dict[int, float]] = {}
+        for ins, inner in ktv_raw.items():
+            try:
+                ktv[ins] = {int(k): float(v) for k, v in inner.items()}
+            except Exception:
+                continue
+        if ktv:
+            self.KT_V_TABLE = ktv
+
+        ktz_raw = tables.get("KT_Z_TABLE", {})
+        ktz: dict[str, dict[int, float]] = {}
+        for ins, inner in ktz_raw.items():
+            try:
+                ktz[ins] = {int(k): float(v) for k, v in inner.items()}
+            except Exception:
+                continue
+        if ktz:
+            self.KT_Z_TABLE = ktz
 
     def _update_medium_options(self) -> None:
         if not self._medium_combobox:
@@ -1700,11 +1805,25 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
             bucket = ">240"
         elif area > 95:
             bucket = "≤240"
-        x_per_km = self.REACTANCE_PER_KM.get((laying, bucket))
+        # Prefer externally loaded reactance data if available
+        x_per_km = None
+        if isinstance(getattr(self, "REACTANCE_DATA", None), dict) and self.REACTANCE_DATA:
+            try:
+                buckets = self.REACTANCE_DATA.get("buckets", {})
+                method_defaults = self.REACTANCE_DATA.get("method_defaults", {})
+                x_per_km = buckets.get(laying, {}).get(bucket)
+                if x_per_km is None:
+                    x_per_km = method_defaults.get(laying)
+                if x_per_km is None:
+                    x_per_km = self.REACTANCE_DATA.get("default")
+            except Exception:
+                x_per_km = None
         if x_per_km is None:
-            x_per_km = self.REACTANCE_PER_KM.get(laying)
-        if x_per_km is None:
-            x_per_km = self.REACTANCE_PER_KM.get("default", 0.08)
+            x_per_km = self.REACTANCE_PER_KM.get((laying, bucket))
+            if x_per_km is None:
+                x_per_km = self.REACTANCE_PER_KM.get(laying)
+            if x_per_km is None:
+                x_per_km = self.REACTANCE_PER_KM.get("default", 0.08)
         return r_per_km, x_per_km
 
     def _drop_pct(
