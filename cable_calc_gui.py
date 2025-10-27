@@ -123,6 +123,11 @@ class CableCalcApp(tk.Tk):
         "label.result.limit_delta": {"ru": "Limit ΔU %", "sr": "Limit ΔU %", "en": "Limit ΔU %"},
         "label.result.ampacity": {"ru": "По току", "sr": "Po struji", "en": "By current"},
         "label.result.drop": {"ru": "По ΔU", "sr": "Po ΔU", "en": "By ΔU"},
+        "label.result.in_range": {
+            "ru": "Диапазон In [A]",
+            "sr": "Opseg In [A]",
+            "en": "In range [A]",
+        },
         "label.result.i2": {"ru": "I2 [A]", "sr": "I2 [A]", "en": "I2 [A]"},
         "label.result.protection": {"ru": "Защита", "sr": "Zaštita", "en": "Protection"},
         "label.result.compatibility": {
@@ -378,6 +383,7 @@ class CableCalcApp(tk.Tk):
         "Limit ΔU %": "label.result.limit_delta",
         "По току": "label.result.ampacity",
         "По ΔU": "label.result.drop",
+        "Диапазон In [A]": "label.result.in_range",
         "I2 [A]": "label.result.i2",
         "Защита": "label.result.protection",
         "Совместимость IEC": "label.result.compatibility",
@@ -1153,6 +1159,7 @@ class CableCalcApp(tk.Tk):
             ("Limit ΔU %", "Limit ΔU %"),
             ("По току", "По току"),
             ("По ΔU", "По ΔU"),
+            ("Диапазон In [A]", "Диапазон In [A]"),
             ("I2 [A]", "I2 [A]"),
             ("Защита", "Защита"),
             ("Совместимость IEC", "Совместимость IEC"),
@@ -1515,6 +1522,7 @@ class CableCalcApp(tk.Tk):
         self._set_entry_alert("Presek, mm²", area_alert)
         self._set_entry_alert("Dužina L, m", length_alert)
 
+        in_range_alert = False
         icalc = None
         phase_factor = None
         if pj is not None and cos_phi is not None and voltage_value and eta_coeff is not None:
@@ -1559,6 +1567,14 @@ class CableCalcApp(tk.Tk):
             self._intermediate_vars["Iz [A]"].set(f"{iz_numeric:.2f}")
         elif base_ampacity is None:
             self._intermediate_vars["Iz [A]"].set("—")
+
+        in_range_value = "—"
+        if icalc is not None and iz_numeric is not None:
+            in_range_value = f"{icalc:.2f} – {iz_numeric:.2f}"
+            if iz_numeric + 1e-9 < icalc:
+                in_range_alert = True
+        if "Диапазон In [A]" in self._intermediate_vars:
+            self._intermediate_vars["Диапазон In [A]"].set(in_range_value)
 
         ampacity_status = None
         if base_ampacity is None:
@@ -1651,6 +1667,7 @@ class CableCalcApp(tk.Tk):
 
         self._intermediate_vars["Защита"].set(protection_status)
         self._set_result_alert("Защита", protection_alert)
+        self._set_result_alert("Диапазон In [A]", in_range_alert or protection_alert)
         self._set_entry_alert("In, A", protection_alert)
 
     def _sum_drop_for_circuit(self, circuit: str) -> float:
