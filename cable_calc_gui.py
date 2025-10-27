@@ -310,7 +310,30 @@ class CableCalcApp(tk.Tk):
         self.title(self.WINDOW_TITLE)
         self.geometry(self.WINDOW_GEOMETRY)
 
+        self.style = ttk.Style(self)
+        try:
+            self.style.theme_use("clam")
+        except tk.TclError:
+            pass
+
+        default_fg = self.style.lookup("TLabel", "foreground") or "#202020"
+        default_bg = self.style.lookup("TLabel", "background") or self.cget("background")
+        self.style.configure("ResultKey.TLabel", foreground=default_fg, background=default_bg)
+        self.style.configure("ResultValue.TLabel", foreground=default_fg, background=default_bg)
+        self.style.configure(
+            "ResultAlert.TLabel",
+            foreground="#b00020",
+            background="#ffe6e6",
+        )
+        self.style.map("ResultAlert.TLabel", background=[("!disabled", "#ffe6e6")])
+        self.style.configure("Invalid.TEntry", fieldbackground="#ffe6e6")
+        self.style.map("Invalid.TEntry", fieldbackground=[("!disabled", "#ffe6e6")])
+
         self._form_values: dict[str, tk.Variable] = {}
+        self._input_widgets: dict[str, ttk.Widget] = {}
+        self._input_styles: dict[str, str] = {}
+        self._intermediate_vars: dict[str, tk.StringVar] = {}
+        self._intermediate_labels: dict[str, ttk.Label] = {}
         self._table_data: list[dict[str, str]] = []
 
         self._build_menu()
@@ -331,9 +354,15 @@ class CableCalcApp(tk.Tk):
         form_frame.pack(fill=tk.X, expand=False, side=tk.TOP, pady=(0, 10))
         self._build_form(form_frame)
 
+        intermediate_frame = ttk.LabelFrame(container, text="Промежуточные результаты")
+        intermediate_frame.pack(fill=tk.X, expand=False, side=tk.TOP, pady=(0, 10))
+        self._build_intermediate_panel(intermediate_frame)
+
         table_frame = ttk.LabelFrame(container, text="Результаты расчёта")
         table_frame.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
         self._build_table(table_frame)
+
+        self._register_form_traces()
 
     def _build_form(self, parent: ttk.Frame) -> None:
         field_specs = [
@@ -397,12 +426,50 @@ class CableCalcApp(tk.Tk):
                 widget = ttk.Entry(grid, textvariable=var)
 
             widget.grid(row=row, column=entry_col, sticky=tk.EW, pady=4)
+            widget_class = widget.winfo_class()
+            original_style = widget.cget("style") or widget_class
+            self._input_widgets[label] = widget
+            self._input_styles[label] = original_style
 
         pi_var = self._form_values["Pi, W"]
         kj_var = self._form_values["Kj"]
         pi_var.trace_add("write", self._update_pj_display)
         kj_var.trace_add("write", self._update_pj_display)
-        self._update_pj_display()
+
+    def _build_intermediate_panel(self, parent: ttk.Frame) -> None:
+        grid = ttk.Frame(parent)
+        grid.pack(fill=tk.X, expand=False, padx=10, pady=10)
+
+        specs = [
+            ("Pj, W", "Pj, W"),
+            ("Icalc [A]", "Icalc [A]"),
+            ("R_base [Ω/km]", "R_base [Ω/km]"),
+            ("Iz [A]", "Iz [A]"),
+            ("ΔU %", "ΔU %"),
+            ("Limit ΔU %", "Limit ΔU %"),
+            ("По току", "По току"),
+            ("По ΔU", "По ΔU"),
+        ]
+
+        columns = 2
+        for col in range(columns * 2):
+            weight = 1 if col % 2 == 1 else 0
+            grid.columnconfigure(col, weight=weight)
+
+        for index, (label_text, key) in enumerate(specs):
+            row = index // columns
+            label_col = (index % columns) * 2
+            value_col = label_col + 1
+
+            ttk.Label(grid, text=label_text, style="ResultKey.TLabel").grid(
+                row=row, column=label_col, sticky=tk.W, pady=4, padx=(0, 8)
+            )
+
+            var = tk.StringVar(value="—")
+            value_label = ttk.Label(grid, textvariable=var, style="ResultValue.TLabel")
+            value_label.grid(row=row, column=value_col, sticky=tk.EW, pady=4)
+            self._intermediate_vars[key] = var
+            self._intermediate_labels[key] = value_label
 
         button_frame = ttk.Frame(parent)
         button_frame.pack(fill=tk.X, pady=(10, 0))
@@ -436,6 +503,13 @@ class CableCalcApp(tk.Tk):
         h_scroll.grid(row=1, column=0, sticky=tk.EW)
 
         tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+
+    def _register_form_traces(self) -> None:
+        for name, var in self._form_values.items():
+            if name == "Pj":
+                continue
+            var.trace_add("write", self._update_intermediate_results)
+        self._update_intermediate_results()
 
     def _try_parse_float(self, value: str) -> float | None:
         value = value.strip().replace(",", ".")
@@ -503,8 +577,169 @@ class CableCalcApp(tk.Tk):
         kj = self._try_parse_float(self._form_values["Kj"].get())
         if pi is None or kj is None:
             self._form_values["Pj"].set("")
+            self._update_intermediate_results()
             return
         self._form_values["Pj"].set(f"{pi * kj:.2f}")
+        self._update_intermediate_results()
+
+    def _set_result_alert(self, key: str, alert: bool) -> None:
+        label = self._intermediate_labels.get(key)
+        if not label:
+            return
+        label.configure(style="ResultAlert.TLabel" if alert else "ResultValue.TLabel")
+
+    def _set_entry_alert(self, field_name: str, alert: bool) -> None:
+        widget = self._input_widgets.get(field_name)
+        if widget is None:
+            return
+        default_style = self._input_styles.get(field_name, "")
+        if not alert:
+            widget.configure(style=default_style)
+            return
+        widget_class = widget.winfo_class()
+        if widget_class == "TEntry":
+            widget.configure(style="Invalid.TEntry")
+
+    def _update_intermediate_results(self, *_: object) -> None:
+        if not self._intermediate_vars:
+            return
+
+        for key, var in self._intermediate_vars.items():
+            if key == "Limit ΔU %":
+                continue
+            var.set("—")
+
+        for key in ("ΔU %", "По ΔU", "По току"):
+            self._set_result_alert(key, False)
+
+        insulation_label = self._form_values["Tip-IZOLACIJE"].get()
+        insulation_meta = self.INSULATION_META.get(insulation_label)
+        conductor = self._form_values["Tip-PROVODNIKA"].get()
+        laying = self._form_values["Način polaganja"].get().strip()
+        drop_key = self._form_values["Ключ ΔU"].get()
+        limit_delta = self.DROP_LIMIT_KEYS.get(drop_key)
+        if limit_delta is not None:
+            self._intermediate_vars["Limit ΔU %"].set(f"{limit_delta:.2f}")
+        else:
+            self._intermediate_vars["Limit ΔU %"].set("—")
+
+        pi = self._try_parse_float(self._form_values["Pi, W"].get())
+        kj = self._try_parse_float(self._form_values["Kj"].get())
+        cos_phi = self._try_parse_float(self._form_values["cos φ"].get())
+        length = self._try_parse_float(self._form_values["Dužina L, m"].get())
+        area = self._try_parse_float(self._form_values["Presek, mm²"].get())
+        s_coeff = self._try_parse_float(self._form_values["S"].get())
+        t_coeff = self._try_parse_float(self._form_values["T"].get())
+        u_coeff = self._try_parse_float(self._form_values["Ucf"].get())
+
+        voltage_str = self._form_values["U"].get()
+        try:
+            voltage_value = int(voltage_str)
+        except (TypeError, ValueError):
+            voltage_value = None
+
+        pj = None
+        if pi is not None and kj is not None:
+            pj = pi * kj
+            self._intermediate_vars["Pj, W"].set(f"{pj:.2f}")
+
+        cos_alert = False
+        if cos_phi is not None:
+            if not (0 < cos_phi <= 1):
+                cos_alert = True
+                cos_phi = None
+        self._set_entry_alert("cos φ", cos_alert)
+
+        area_alert = False
+        if area is not None and area <= 0:
+            area_alert = True
+            area = None
+
+        length_alert = False
+        if length is not None and length < 0:
+            length_alert = True
+            length = None
+
+        self._set_entry_alert("Presek, mm²", area_alert)
+        self._set_entry_alert("Dužina L, m", length_alert)
+
+        icalc = None
+        phase_factor = None
+        if pj is not None and cos_phi is not None and voltage_value:
+            if voltage_value == 230:
+                icalc = pj / (voltage_value * cos_phi)
+                phase_factor = 2.0
+            else:
+                icalc = pj / (math.sqrt(3) * voltage_value * cos_phi)
+                phase_factor = math.sqrt(3)
+            self._intermediate_vars["Icalc [A]"].set(f"{icalc:.3f}")
+
+        r_per_km = None
+        x_per_km = None
+        if area is not None and insulation_meta is not None:
+            r_per_km, x_per_km = self._calculate_line_impedance(
+                conductor, insulation_meta["theta"], area, laying
+            )
+            self._intermediate_vars["R_base [Ω/km]"].set(f"{r_per_km:.3f}")
+
+        base_ampacity = None
+        if area is not None and insulation_meta is not None:
+            base_ampacity = self._lookup_ampacity(insulation_meta["key"], conductor, laying, area)
+
+        iz_numeric = None
+        if (
+            base_ampacity is not None
+            and s_coeff is not None
+            and t_coeff is not None
+            and u_coeff is not None
+        ):
+            iz_numeric = base_ampacity * s_coeff * t_coeff * u_coeff
+            self._intermediate_vars["Iz [A]"].set(f"{iz_numeric:.2f}")
+        elif base_ampacity is None:
+            self._intermediate_vars["Iz [A]"].set("—")
+
+        ampacity_status = None
+        if base_ampacity is None:
+            ampacity_status = "N/A"
+        elif iz_numeric is None or icalc is None:
+            ampacity_status = "—"
+        else:
+            ampacity_status = "OK" if icalc <= iz_numeric else "NE"
+        ampacity_alert = ampacity_status == "NE" or area_alert
+        if ampacity_status is not None:
+            self._intermediate_vars["По току"].set(ampacity_status)
+            self._set_result_alert("По току", ampacity_alert)
+        self._set_entry_alert("Presek, mm²", ampacity_alert)
+
+        delta_u = None
+        if (
+            icalc is not None
+            and phase_factor is not None
+            and length is not None
+            and cos_phi is not None
+            and r_per_km is not None
+            and x_per_km is not None
+            and voltage_value
+        ):
+            r_per_meter = r_per_km / 1000.0
+            x_per_meter = x_per_km / 1000.0
+            sin_phi = math.sqrt(max(0.0, 1.0 - min(1.0, cos_phi) ** 2))
+            impedance_drop = r_per_meter * cos_phi + x_per_meter * sin_phi
+            delta_u = phase_factor * icalc * impedance_drop * length * 100.0 / voltage_value
+            self._intermediate_vars["ΔU %"].set(f"{delta_u:.2f}")
+
+        drop_status = None
+        if delta_u is not None and limit_delta is not None:
+            drop_status = "OK" if delta_u <= limit_delta else "NE"
+            self._intermediate_vars["По ΔU"].set(drop_status)
+            self._set_result_alert("По ΔU", drop_status == "NE")
+            self._set_result_alert("ΔU %", drop_status == "NE")
+        elif delta_u is not None:
+            drop_status = "—"
+            self._intermediate_vars["По ΔU"].set(drop_status)
+
+        drop_alert = (drop_status == "NE") or length_alert
+        self._set_entry_alert("Dužina L, m", drop_alert)
 
     def add_row(self) -> None:
         strujni_krug = self._form_values["Strujni krug"].get().strip()
