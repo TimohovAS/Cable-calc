@@ -1028,6 +1028,31 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         },
     }
 
+    # Override embedded data with empty placeholders; load from data/ at runtime
+    TRANSLATIONS = {}
+    TOOLTIPS = {}
+    HELP_TEXTS = {}
+    INSULATION_OPTIONS = []
+    INSULATION_META = {}
+    CONDUCTOR_TYPES = []
+    VOLTAGE_LEVELS = []
+    TEMPERATURE_MEDIA = {}
+    INSTALLATION_METHODS = []
+    STANDARD_SECTIONS = []
+    METHOD_PREFERENCE = []
+    STANDARD_CROSS_SECTIONS = []
+    STANDARD_BREAKER_RATINGS = []
+    DROP_LIMIT_KEYS = {}
+    RESISTIVITY_20 = {}
+    TEMP_COEFF = {}
+    REACTANCE_PER_KM = {}
+    AMPACITY_BASE = {}
+    AMPACITY_INSULATION_FACTORS = {}
+    AMPACITY_LOADED_FACTORS = {}
+    GROUPING_FACTORS = {}
+    KT_V_TABLE = {}
+    KT_Z_TABLE = {}
+
     TREE_COLUMNS = (
         "Strujni krug",
         "OD",
@@ -1111,11 +1136,14 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         self._last_temperature_warning: tuple[str, str, float] | None = None
         self._temperature_editing = False
         self._tooltips: list["Tooltip"] = []
-        self._medium_selected_key = (
-            self.DEFAULT_MEDIUM
-            if self.DEFAULT_MEDIUM in self.TEMPERATURE_MEDIA
-            else next(iter(self.TEMPERATURE_MEDIA))
-        )
+        if self.TEMPERATURE_MEDIA:
+            self._medium_selected_key = (
+                self.DEFAULT_MEDIUM
+                if self.DEFAULT_MEDIUM in self.TEMPERATURE_MEDIA
+                else next(iter(self.TEMPERATURE_MEDIA))
+            )
+        else:
+            self._medium_selected_key = self.DEFAULT_MEDIUM
         self._medium_combobox: ttk.Combobox | None = None
         self._help_text_widget: tk.Text | None = None
         self._notebook: ttk.Notebook | None = None
@@ -1792,7 +1820,10 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         rho_20 = self.RESISTIVITY_20.get(conductor)
         alpha = self.TEMP_COEFF.get(conductor)
         if rho_20 is None or alpha is None:
-            return 0.0, self.REACTANCE_PER_KM.get(laying, self.REACTANCE_PER_KM["default"])
+            default_x = 0.08
+            if isinstance(getattr(self, "REACTANCE_DATA", None), dict) and self.REACTANCE_DATA:
+                default_x = self.REACTANCE_DATA.get("default", default_x)
+            return 0.0, default_x
 
         rho_theta = rho_20 * (1.0 + alpha * (insulation_temp - 20.0))
         if area <= 0:
