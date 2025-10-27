@@ -1157,8 +1157,8 @@ class CableCalcApp(tk.Tk):
             label_col = column * 2
             entry_col = label_col + 1
 
-            label_widget = ttk.Label(grid, text="")
-            label_widget.grid(row=row, column=label_col, sticky=tk.W, pady=4, padx=(0, 8))
+            label_widget = ttk.Label(grid, text="", anchor="e", justify="right")
+            label_widget.grid(row=row, column=label_col, sticky=tk.E, pady=4, padx=(0, 8))
             label_key = self.LABEL_KEY_MAP.get(label, label)
             self._bind_text(lambda value, widget=label_widget: widget.configure(text=value), label_key)
 
