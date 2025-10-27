@@ -1,14 +1,422 @@
 import json
+import logging
 import math
+import typing
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from xml.sax.saxutils import escape
 from zipfile import ZipFile
 
 
+class Tooltip:
+    def __init__(self, widget: tk.Widget, text_getter: typing.Callable[[], str]) -> None:
+        self.widget = widget
+        self.text_getter = text_getter
+        self.tipwindow: tk.Toplevel | None = None
+        self.widget.bind("<Enter>", self._show_tip)
+        self.widget.bind("<Leave>", self._hide_tip)
+
+    def _show_tip(self, event: tk.Event | None) -> None:
+        text = self.text_getter()
+        if not text:
+            return
+        if self.tipwindow is not None:
+            self._hide_tip(None)
+        x = y = 0
+        if event is not None:
+            x = event.x_root + 12
+            y = event.y_root + 8
+        else:
+            x = self.widget.winfo_rootx() + 12
+            y = self.widget.winfo_rooty() + 8
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(
+            tw,
+            text=text,
+            justify=tk.LEFT,
+            background="#ffffe0",
+            relief=tk.SOLID,
+            borderwidth=1,
+            font=("TkDefaultFont", 9),
+            wraplength=280,
+        )
+        label.pack(ipadx=4, ipady=2)
+
+    def _hide_tip(self, _: tk.Event | None) -> None:
+        if self.tipwindow is not None:
+            self.tipwindow.destroy()
+            self.tipwindow = None
+
+
+logging.basicConfig(
+    filename="cable_calc.log",
+    level=logging.ERROR,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
+
+
 class CableCalcApp(tk.Tk):
-    WINDOW_TITLE = "Proračun kablova"
+    WINDOW_TITLE_KEY = "app.title"
     WINDOW_GEOMETRY = "1200x800"
+    DEFAULT_LANGUAGE = "ru"
+
+
+    LANGUAGES = {"ru": "Русский", "sr": "Srpski", "en": "English"}
+    DEFAULT_MEDIUM = "air"
+
+    TRANSLATIONS = {
+        "app.title": {"ru": "Proračun kablova", "sr": "Proračun kablova", "en": "Cable calculation"},
+        "menu.file": {"ru": "Файл", "sr": "Datoteka", "en": "File"},
+        "menu.language": {"ru": "Язык", "sr": "Jezik", "en": "Language"},
+        "menu.save_project": {"ru": "Сохранить проект…", "sr": "Sačuvaj projekat…", "en": "Save project…"},
+        "menu.load_project": {"ru": "Загрузить проект…", "sr": "Učitaj projekat…", "en": "Load project…"},
+        "menu.export_excel": {"ru": "Экспорт в Excel…", "sr": "Izvoz u Excel…", "en": "Export to Excel…"},
+        "tab.calculation": {"ru": "Расчёт", "sr": "Proračun", "en": "Calculation"},
+        "tab.help": {"ru": "Помощь", "sr": "Pomoć", "en": "Help"},
+        "frame.input": {"ru": "Ввод данных", "sr": "Unos podataka", "en": "Input"},
+        "frame.intermediate": {"ru": "Промежуточные результаты", "sr": "Međurezultati", "en": "Intermediate results"},
+        "frame.table": {"ru": "Результаты расчёта", "sr": "Rezultati proračuna", "en": "Calculation results"},
+        "button.add_row": {
+            "ru": "Рассчитать и добавить строку",
+            "sr": "Izračunaj i dodaj red",
+            "en": "Calculate and add row",
+        },
+        "button.clear": {"ru": "Очистить список", "sr": "Očisti listu", "en": "Clear list"},
+        "label.circuit": {"ru": "Strujni krug", "sr": "Strujni krug", "en": "Circuit"},
+        "label.segment_from": {"ru": "Deonica OD", "sr": "Deonica OD", "en": "Segment from"},
+        "label.segment_to": {"ru": "Deonica DO", "sr": "Deonica DO", "en": "Segment to"},
+        "label.insulation": {"ru": "Tip-IZOLACIJE", "sr": "Tip izolacije", "en": "Insulation type"},
+        "label.conductor": {"ru": "Tip-PROVODNIKA", "sr": "Tip provodnika", "en": "Conductor type"},
+        "label.cable": {"ru": "Oznaka-tip-KABLA", "sr": "Oznaka/tip kabla", "en": "Cable designation"},
+        "label.pi": {"ru": "Pi, W", "sr": "Pi, W", "en": "Pi, W"},
+        "label.kj": {"ru": "Kj", "sr": "Kj", "en": "Kj"},
+        "label.eta": {"ru": "η", "sr": "η", "en": "η"},
+        "label.pj": {"ru": "Pj", "sr": "Pj", "en": "Pj"},
+        "label.voltage": {"ru": "U", "sr": "U", "en": "U"},
+        "label.cos_phi": {"ru": "cos φ", "sr": "cos φ", "en": "cos φ"},
+        "label.length": {"ru": "Dužina L, m", "sr": "Dužina L, m", "en": "Length L, m"},
+        "label.area": {"ru": "Presek, mm²", "sr": "Presek, mm²", "en": "Cross-section, mm²"},
+        "label.installation": {"ru": "Način polaganja", "sr": "Način polaganja", "en": "Installation method"},
+        "label.loaded_cores": {
+            "ru": "Нагруженные жилы (nž)",
+            "sr": "Broj opterećenih žila (nž)",
+            "en": "Loaded cores (nž)",
+        },
+        "label.circuits": {"ru": "Число цепей", "sr": "Broj krugova", "en": "Number of circuits"},
+        "label.medium": {"ru": "Среда для Т", "sr": "Okruženje za T", "en": "Medium for T"},
+        "label.temperature": {"ru": "Температура, °C", "sr": "Temperatura, °C", "en": "Temperature, °C"},
+        "label.s": {"ru": "S", "sr": "S", "en": "S"},
+        "label.t": {"ru": "T", "sr": "T", "en": "T"},
+        "label.in": {"ru": "In, A", "sr": "In, A", "en": "In, A"},
+        "label.k": {"ru": "k", "sr": "k", "en": "k"},
+        "label.drop_key": {"ru": "Ключ ΔU", "sr": "Ključ ΔU", "en": "ΔU key"},
+        "label.result.pj": {"ru": "Pj, W", "sr": "Pj, W", "en": "Pj, W"},
+        "label.result.icalc": {"ru": "Icalc [A]", "sr": "Icalc [A]", "en": "Icalc [A]"},
+        "label.result.rbase": {"ru": "R_base [Ω/km]", "sr": "R_base [Ω/km]", "en": "R_base [Ω/km]"},
+        "label.result.iz": {"ru": "Iz [A]", "sr": "Iz [A]", "en": "Iz [A]"},
+        "label.result.s": {"ru": "S", "sr": "S", "en": "S"},
+        "label.result.t": {"ru": "T", "sr": "T", "en": "T"},
+        "label.result.delta": {"ru": "ΔU %", "sr": "ΔU %", "en": "ΔU %"},
+        "label.result.total_delta": {"ru": "Ukupni ΔU %", "sr": "Ukupni ΔU %", "en": "Total ΔU %"},
+        "label.result.limit_delta": {"ru": "Limit ΔU %", "sr": "Limit ΔU %", "en": "Limit ΔU %"},
+        "label.result.ampacity": {"ru": "По току", "sr": "Po struji", "en": "By current"},
+        "label.result.drop": {"ru": "По ΔU", "sr": "Po ΔU", "en": "By ΔU"},
+        "label.result.i2": {"ru": "I2 [A]", "sr": "I2 [A]", "en": "I2 [A]"},
+        "label.result.protection": {"ru": "Защита", "sr": "Zaštita", "en": "Protection"},
+        "label.result.compatibility": {
+            "ru": "Совместимость IEC",
+            "sr": "IEC kompatibilnost",
+            "en": "IEC compatibility",
+        },
+        "column.circuit": {"ru": "Strujni krug", "sr": "Strujni krug", "en": "Circuit"},
+        "column.from": {"ru": "OD", "sr": "OD", "en": "From"},
+        "column.to": {"ru": "DO", "sr": "DO", "en": "To"},
+        "column.insulation": {"ru": "E", "sr": "E", "en": "E"},
+        "column.conductor": {"ru": "F", "sr": "F", "en": "F"},
+        "column.cable": {"ru": "G", "sr": "G", "en": "G"},
+        "column.cores": {"ru": "nž", "sr": "nž", "en": "nž"},
+        "column.pi": {"ru": "Pi", "sr": "Pi", "en": "Pi"},
+        "column.kj": {"ru": "Kj", "sr": "Kj", "en": "Kj"},
+        "column.eta": {"ru": "η", "sr": "η", "en": "η"},
+        "column.pj": {"ru": "Pj", "sr": "Pj", "en": "Pj"},
+        "column.voltage": {"ru": "U", "sr": "U", "en": "U"},
+        "column.cos": {"ru": "cosφ", "sr": "cosφ", "en": "cosφ"},
+        "column.length": {"ru": "L", "sr": "L", "en": "L"},
+        "column.area": {"ru": "Presek", "sr": "Presek", "en": "Area"},
+        "column.installation": {
+            "ru": "Način polaganja",
+            "sr": "Način polaganja",
+            "en": "Installation",
+        },
+        "column.s": {"ru": "S", "sr": "S", "en": "S"},
+        "column.t": {"ru": "T", "sr": "T", "en": "T"},
+        "column.in": {"ru": "In [A]", "sr": "In [A]", "en": "In [A]"},
+        "column.k": {"ru": "k", "sr": "k", "en": "k"},
+        "column.i2": {"ru": "I2 [A]", "sr": "I2 [A]", "en": "I2 [A]"},
+        "column.icalc": {"ru": "Icalc [A]", "sr": "Icalc [A]", "en": "Icalc [A]"},
+        "column.rbase": {"ru": "R_base [Ω/km]", "sr": "R_base [Ω/km]", "en": "R_base [Ω/km]"},
+        "column.iz": {"ru": "Iz [A]", "sr": "Iz [A]", "en": "Iz [A]"},
+        "column.drop": {"ru": "ΔU %", "sr": "ΔU %", "en": "ΔU %"},
+        "column.total_drop": {
+            "ru": "Ukupni ΔU %",
+            "sr": "Ukupni ΔU %",
+            "en": "Total ΔU %",
+        },
+        "column.limit_drop": {
+            "ru": "Limit ΔU %",
+            "sr": "Limit ΔU %",
+            "en": "Limit ΔU %",
+        },
+        "column.ampacity": {"ru": "По току", "sr": "Po struji", "en": "By current"},
+        "column.drop_status": {"ru": "По ΔU", "sr": "Po ΔU", "en": "By ΔU"},
+        "column.protection": {"ru": "Защита", "sr": "Zaštita", "en": "Protection"},
+        "column.key": {"ru": "Ключ", "sr": "Ključ", "en": "Key"},
+        "column.compatibility": {
+            "ru": "Совместимость IEC",
+            "sr": "IEC kompatibilnost",
+            "en": "IEC compatibility",
+        },
+        "column.medium": {"ru": "Среда", "sr": "Okruženje", "en": "Medium"},
+        "column.limit": {"ru": "Limit ΔU %", "sr": "Limit ΔU %", "en": "Limit ΔU %"},
+        "status.ok": {"ru": "OK", "sr": "OK", "en": "OK"},
+        "status.fail": {"ru": "NE", "sr": "NE", "en": "NO"},
+        "status.na": {"ru": "N/A", "sr": "N/A", "en": "N/A"},
+        "status.no_data": {"ru": "Нет данных", "sr": "Nema podataka", "en": "No data"},
+    }
+
+    TOOLTIPS = {
+        "label.circuit": {
+            "ru": "Имя или номер цепи, используется для суммирования падений напряжения.",
+            "sr": "Naziv ili broj kruga koji se koristi za sumiranje pada napona.",
+            "en": "Circuit name or number used when summing voltage drop.",
+        },
+        "label.segment_from": {
+            "ru": "Начальная точка рассматриваемой кабельной линии.",
+            "sr": "Početna tačka posmatrane deonice kabla.",
+            "en": "Start point of the cable segment.",
+        },
+        "label.segment_to": {
+            "ru": "Конечная точка рассматриваемой кабельной линии.",
+            "sr": "Krajnja tačka posmatrane deonice kabla.",
+            "en": "End point of the cable segment.",
+        },
+        "label.insulation": {
+            "ru": "Выберите тип изоляции кабеля согласно IEC 60364.",
+            "sr": "Odaberite tip izolacije kabla prema IEC 60364.",
+            "en": "Select the cable insulation type according to IEC 60364.",
+        },
+        "label.conductor": {
+            "ru": "Материал токопроводящей жилы (медь или алюминий).",
+            "sr": "Materijal provodnika (bakar ili aluminijum).",
+            "en": "Conductor material (copper or aluminium).",
+        },
+        "label.cable": {
+            "ru": "Заводская маркировка или описание кабеля.",
+            "sr": "Fabricka oznaka ili opis kabla.",
+            "en": "Factory designation or description of the cable.",
+        },
+        "label.pi": {
+            "ru": "Номинальная мощность нагрузки в ваттах.",
+            "sr": "Nazivna snaga opterećenja u vatima.",
+            "en": "Rated load power in watts.",
+        },
+        "label.kj": {
+            "ru": "Коэффициент спроса (одновременности) для группы потребителей.",
+            "sr": "Koeficijent istovremenosti za grupu potrošača.",
+            "en": "Demand (diversity) factor for the load group.",
+        },
+        "label.eta": {
+            "ru": "КПД установки. Должен быть в диапазоне (0;1].",
+            "sr": "Efikasnost sistema. Mora biti u opsegu (0;1].",
+            "en": "System efficiency. Must be within (0, 1].",
+        },
+        "label.pj": {
+            "ru": "Рассчитанная активная мощность Pi × Kj.",
+            "sr": "Izračunata aktivna snaga Pi × Kj.",
+            "en": "Calculated active power Pi × Kj.",
+        },
+        "label.voltage": {
+            "ru": "Номинальное напряжение питающей сети.",
+            "sr": "Nazivni napon mreže.",
+            "en": "Nominal system voltage.",
+        },
+        "label.cos_phi": {
+            "ru": "Коэффициент мощности нагрузки.",
+            "sr": "Faktor snage opterećenja.",
+            "en": "Load power factor.",
+        },
+        "label.length": {
+            "ru": "Длина рассматриваемого участка кабеля в метрах.",
+            "sr": "Dužina posmatrane deonice kabla u metrima.",
+            "en": "Length of the analysed cable section in metres.",
+        },
+        "label.area": {
+            "ru": "Выбранное сечение жилы кабеля.",
+            "sr": "Odabrani presek provodnika.",
+            "en": "Selected conductor cross-section.",
+        },
+        "label.installation": {
+            "ru": "Метод прокладки кабеля по IEC 60364.",
+            "sr": "Metod polaganja kabla prema IEC 60364.",
+            "en": "Cable installation method per IEC 60364.",
+        },
+        "label.loaded_cores": {
+            "ru": "Число нагруженных жил (2 для 1ф, 3 для 3ф систем).",
+            "sr": "Broj opterećenih žila (2 za jednofazne, 3 za trofazne sisteme).",
+            "en": "Number of loaded cores (2 for single-phase, 3 for three-phase).",
+        },
+        "label.circuits": {
+            "ru": "Количество параллельных цепей в одной группе прокладки.",
+            "sr": "Broj paralelnih krugova u istoj grupi polaganja.",
+            "en": "Number of parallel circuits in the same grouping.",
+        },
+        "label.medium": {
+            "ru": "Среда для температурного коэффициента (воздух или грунт).",
+            "sr": "Okruženje za temperaturni koeficijent (vazduh ili tlo).",
+            "en": "Environment for the temperature factor (air or soil).",
+        },
+        "label.temperature": {
+            "ru": "Фактическая температура окружающей среды.",
+            "sr": "Stvarna temperatura okruženja.",
+            "en": "Actual ambient temperature.",
+        },
+        "label.s": {
+            "ru": "Коэффициент группировки Kn. Рассчитывается автоматически.",
+            "sr": "Koeficijent grupisanja Kn. Računa se automatski.",
+            "en": "Grouping factor Kn. Calculated automatically.",
+        },
+        "label.t": {
+            "ru": "Температурный коэффициент Kt. Рассчитывается автоматически.",
+            "sr": "Temperaturni koeficijent Kt. Računa se automatski.",
+            "en": "Temperature factor Kt. Calculated automatically.",
+        },
+        "label.in": {
+            "ru": "Номинальный ток защитного устройства.",
+            "sr": "Nazivna struja zaštitnog uređaja.",
+            "en": "Rated current of the protective device.",
+        },
+        "label.k": {
+            "ru": "Коэффициент надежного срабатывания (I2/In).",
+            "sr": "Koeficijent pouzdanog delovanja (I2/In).",
+            "en": "Tripping reliability factor (I2/In).",
+        },
+        "label.drop_key": {
+            "ru": "Допустимое падение напряжения по IEC 60364.",
+            "sr": "Dozvoljeni pad napona prema IEC 60364.",
+            "en": "Allowed voltage drop per IEC 60364.",
+        },
+    }
+
+    HELP_TEXTS = {
+        "ru": """Описание коэффициентов IEC 60364:\n\n"
+        "S — коэффициент группировки кабелей (Kn). Учитывает взаимное нагревание при совместной прокладке.\n"
+        "T — температурный коэффициент (Kt) для воздуха или грунта. Используйте табличные значения IEC 60364-5-52.\n"
+        "η — КПД установки. Определяется по паспорту оборудования.\n"
+        "Kj — коэффициент спроса (одновременности) для группы потребителей.\n"
+        "ΔU — допустимое падение напряжения по выбранному ключу (UIDM, SVDM, SVTS, UITS).\n"
+        "cos φ — коэффициент мощности нагрузки.\n"
+        "In, k — параметры защитного устройства: номинальный ток и коэффициент I2/In.\n"
+        "Проверяйте, что Ib ≤ In ≤ Iz и I2 ≤ 1.45×Iz в соответствии с IEC 60364-4-43.\n""",
+        "sr": """Opis koeficijenata prema IEC 60364:\n\n"
+        "S — koeficijent grupisanja kablova (Kn) koji uzima u obzir međusobno zagrevanje.\n"
+        "T — temperaturni koeficijent (Kt) za vazduh ili tlo prema tabelama IEC 60364-5-52.\n"
+        "η — efikasnost postrojenja prema podacima proizvođača.\n"
+        "Kj — koeficijent istovremenosti potrošača.\n"
+        "ΔU — dozvoljeni pad napona po odabranom ključu (UIDM, SVDM, SVTS, UITS).\n"
+        "cos φ — faktor snage opterećenja.\n"
+        "In, k — parametri zaštitnog uređaja: nazivna struja i odnos I2/In.\n"
+        "Proverite da Ib ≤ In ≤ Iz i da je I2 ≤ 1.45×Iz u skladu sa IEC 60364-4-43.\n""",
+        "en": """Description of IEC 60364 factors:\n\n"
+        "S – cable grouping factor (Kn) accounting for mutual heating.\n"
+        "T – ambient temperature factor (Kt) for air or soil from IEC 60364-5-52 tables.\n"
+        "η – installation efficiency as specified by the manufacturer.\n"
+        "Kj – demand (diversity) factor for the load group.\n"
+        "ΔU – permitted voltage drop according to the selected key (UIDM, SVDM, SVTS, UITS).\n"
+        "cos φ – load power factor.\n"
+        "In, k – protective device parameters: rated current and I2/In ratio.\n"
+        "Ensure Ib ≤ In ≤ Iz and I2 ≤ 1.45×Iz in line with IEC 60364-4-43.\n""",
+    }
+
+    LABEL_KEY_MAP = {
+        "Strujni krug": "label.circuit",
+        "Deonica OD": "label.segment_from",
+        "Deonica DO": "label.segment_to",
+        "Tip-IZOLACIJE": "label.insulation",
+        "Tip-PROVODNIKA": "label.conductor",
+        "Oznaka-tip-KABLA": "label.cable",
+        "Pi, W": "label.pi",
+        "Kj": "label.kj",
+        "η": "label.eta",
+        "Pj": "label.pj",
+        "U": "label.voltage",
+        "cos φ": "label.cos_phi",
+        "Dužina L, m": "label.length",
+        "Presek, mm²": "label.area",
+        "Način polaganja": "label.installation",
+        "Нагруженные жилы (nž)": "label.loaded_cores",
+        "Число цепей": "label.circuits",
+        "Среда для Т": "label.medium",
+        "Температура, °C": "label.temperature",
+        "S": "label.s",
+        "T": "label.t",
+        "In, A": "label.in",
+        "k": "label.k",
+        "Ключ ΔU": "label.drop_key",
+    }
+
+    RESULT_LABEL_KEY_MAP = {
+        "Pj, W": "label.result.pj",
+        "Icalc [A]": "label.result.icalc",
+        "R_base [Ω/km]": "label.result.rbase",
+        "Iz [A]": "label.result.iz",
+        "S": "label.result.s",
+        "T": "label.result.t",
+        "ΔU %": "label.result.delta",
+        "Ukupni ΔU %": "label.result.total_delta",
+        "Limit ΔU %": "label.result.limit_delta",
+        "По току": "label.result.ampacity",
+        "По ΔU": "label.result.drop",
+        "I2 [A]": "label.result.i2",
+        "Защита": "label.result.protection",
+        "Совместимость IEC": "label.result.compatibility",
+    }
+
+    TREE_COLUMN_KEYS = {
+        "Strujni krug": "column.circuit",
+        "OD": "column.from",
+        "DO": "column.to",
+        "E": "column.insulation",
+        "F": "column.conductor",
+        "G": "column.cable",
+        "nž": "column.cores",
+        "Pi": "column.pi",
+        "Kj": "column.kj",
+        "η": "column.eta",
+        "Pj": "column.pj",
+        "U": "column.voltage",
+        "cosφ": "column.cos",
+        "L": "column.length",
+        "Presek": "column.area",
+        "Način polaganja": "column.installation",
+        "S": "column.s",
+        "T": "column.t",
+        "In [A]": "column.in",
+        "k": "column.k",
+        "I2 [A]": "column.i2",
+        "Icalc [A]": "column.icalc",
+        "R_base [Ω/km]": "column.rbase",
+        "Iz [A]": "column.iz",
+        "ΔU %": "column.drop",
+        "Ukupni ΔU %": "column.total_drop",
+        "Limit ΔU %": "column.limit_drop",
+        "По току": "column.ampacity",
+        "По ΔU": "column.drop_status",
+        "Защита": "column.protection",
+        "Ключ": "column.key",
+        "Совместимость IEC": "column.compatibility",
+    }
 
     INSULATION_OPTIONS = [
         "PVC (70°C)",
@@ -21,7 +429,10 @@ class CableCalcApp(tk.Tk):
 
     CONDUCTOR_TYPES = ["Cu", "Al"]
     VOLTAGE_LEVELS = ["230", "400"]
-    TEMPERATURE_MEDIA = ["Воздух", "Грунт"]
+    TEMPERATURE_MEDIA = {
+        "air": {"ru": "Воздух", "sr": "Vazduh", "en": "Air"},
+        "soil": {"ru": "Грунт", "sr": "Tlo", "en": "Soil"},
+    }
     INSTALLATION_METHODS = ["A1", "A2", "B1", "B2", "C", "D", "E", "F", "G"]
     DROP_LIMIT_KEYS = {
         "UIDM": 5.0,
@@ -374,12 +785,19 @@ class CableCalcApp(tk.Tk):
         "По ΔU",
         "Защита",
         "Ключ",
+        "Совместимость IEC",
     )
 
     def __init__(self) -> None:
         super().__init__()
-        self.title(self.WINDOW_TITLE)
         self.geometry(self.WINDOW_GEOMETRY)
+
+        self._language = tk.StringVar(value=self.DEFAULT_LANGUAGE)
+        self._language.trace_add("write", self._on_language_change)
+
+        self._text_bindings: list[tuple[typing.Callable[[str], None], str]] = []
+        self._menu_text_bindings: list[tuple[tk.Menu, int, str]] = []
+        self._tree_heading_bindings: list[tuple[str, str]] = []
 
         self.style = ttk.Style(self)
         try:
@@ -407,43 +825,209 @@ class CableCalcApp(tk.Tk):
         self._intermediate_labels: dict[str, ttk.Label] = {}
         self._table_data: list[dict[str, str]] = []
         self._last_temperature_warning: tuple[str, str, float] | None = None
+        self._tooltips: list["Tooltip"] = []
+        self._medium_selected_key = (
+            self.DEFAULT_MEDIUM
+            if self.DEFAULT_MEDIUM in self.TEMPERATURE_MEDIA
+            else next(iter(self.TEMPERATURE_MEDIA))
+        )
+        self._medium_combobox: ttk.Combobox | None = None
+        self._help_text_widget: tk.Text | None = None
+        self._notebook: ttk.Notebook | None = None
+        self._tabs: dict[str, ttk.Frame] = {}
 
         self._build_menu()
         self._build_layout()
 
+        self.title(self._(self.WINDOW_TITLE_KEY))
+        self._apply_language()
+
+    def _(self, key: str) -> str:
+        translations = self.TRANSLATIONS.get(key)
+        if not translations:
+            return key
+        language = self._language.get()
+        if language in translations:
+            return translations[language]
+        default_value = translations.get(self.DEFAULT_LANGUAGE)
+        if default_value is not None:
+            return default_value
+        return next(iter(translations.values()))
+
+    def _bind_text(self, setter: typing.Callable[[str], None], key: str) -> None:
+        self._text_bindings.append((setter, key))
+        setter(self._(key))
+
+    def _register_menu_text(self, menu: tk.Menu, index: int, key: str) -> None:
+        self._menu_text_bindings.append((menu, index, key))
+        menu.entryconfigure(index, label=self._(key))
+
+    def _register_tree_heading(self, column_id: str, key: str) -> None:
+        self._tree_heading_bindings.append((column_id, key))
+        self.tree.heading(column_id, text=self._(key))
+
+    def _register_notebook_tab(self, tab: ttk.Frame, key: str) -> None:
+        if not self._notebook:
+            return
+
+        def setter(value: str, tab_ref: ttk.Frame = tab) -> None:
+            if self._notebook:
+                self._notebook.tab(tab_ref, text=value)
+
+        self._bind_text(setter, key)
+
+    def _on_language_change(self, *_: object) -> None:
+        self._apply_language()
+
+    def _apply_language(self) -> None:
+        self.title(self._(self.WINDOW_TITLE_KEY))
+
+        for setter, key in self._text_bindings:
+            setter(self._(key))
+
+        for menu, index, key in self._menu_text_bindings:
+            try:
+                menu.entryconfigure(index, label=self._(key))
+            except tk.TclError:
+                continue
+
+        if hasattr(self, "tree"):
+            for column_id, key in self._tree_heading_bindings:
+                try:
+                    self.tree.heading(column_id, text=self._(key))
+                except tk.TclError:
+                    continue
+
+        self._update_medium_options()
+        self._update_help_text()
+
+    def _update_medium_options(self) -> None:
+        if not self._medium_combobox:
+            return
+        language = self._language.get()
+        values = [meta.get(language, meta.get(self.DEFAULT_LANGUAGE, "")) for meta in self.TEMPERATURE_MEDIA.values()]
+        self._medium_combobox.configure(values=values)
+        display = self.TEMPERATURE_MEDIA[self._medium_selected_key].get(
+            language, self.TEMPERATURE_MEDIA[self._medium_selected_key][self.DEFAULT_LANGUAGE]
+        )
+        self._medium_combobox.set(display)
+        var = self._form_values.get("Среда для Т")
+        if var is not None:
+            var.set(display)
+
+    def _update_help_text(self) -> None:
+        if self._help_text_widget is None:
+            return
+        language = self._language.get()
+        help_text = self.HELP_TEXTS.get(language, self.HELP_TEXTS[self.DEFAULT_LANGUAGE])
+        self._help_text_widget.configure(state="normal")
+        self._help_text_widget.delete("1.0", tk.END)
+        self._help_text_widget.insert("1.0", help_text)
+        self._help_text_widget.configure(state="disabled")
+
+    def _on_medium_changed(self, _: tk.Event | None) -> None:
+        display = self._form_values.get("Среда для Т")
+        if display is None:
+            return
+        selected = display.get().strip()
+        for key, translations in self.TEMPERATURE_MEDIA.items():
+            if selected in translations.values():
+                self._medium_selected_key = key
+                break
+        self._update_intermediate_results()
+
+    def _set_medium_from_value(self, value: str) -> None:
+        normalized = value.strip()
+        for key, translations in self.TEMPERATURE_MEDIA.items():
+            if normalized in translations.values():
+                self._medium_selected_key = key
+                break
+        language = self._language.get()
+        display = self.TEMPERATURE_MEDIA[self._medium_selected_key].get(
+            language, self.TEMPERATURE_MEDIA[self._medium_selected_key][self.DEFAULT_LANGUAGE]
+        )
+        medium_var = self._form_values.get("Среда для Т")
+        if medium_var is not None:
+            medium_var.set(display)
+        if self._medium_combobox is not None:
+            self._medium_combobox.set(display)
+
+    def _attach_tooltip(self, widget: ttk.Widget, label_key: str) -> None:
+        tooltip_texts = self.TOOLTIPS.get(label_key)
+        if not tooltip_texts:
+            return
+
+        def text_getter(key: str = label_key) -> str:
+            translations = self.TOOLTIPS.get(key, {})
+            language = self._language.get()
+            if language in translations:
+                return translations[language]
+            return translations.get(self.DEFAULT_LANGUAGE, "")
+
+        tooltip = Tooltip(widget, text_getter)
+        self._tooltips.append(tooltip)
+
     def _build_menu(self) -> None:
         menubar = tk.Menu(self)
+
         file_menu = tk.Menu(menubar, tearoff=0)
-        file_menu.add_command(label="Сохранить проект…", command=self.save_project)
-        file_menu.add_command(label="Загрузить проект…", command=self.load_project)
+        file_menu.add_command(label=self._("menu.save_project"), command=self.save_project)
+        self._register_menu_text(file_menu, file_menu.index("end"), "menu.save_project")
+        file_menu.add_command(label=self._("menu.load_project"), command=self.load_project)
+        self._register_menu_text(file_menu, file_menu.index("end"), "menu.load_project")
         file_menu.add_separator()
-        file_menu.add_command(label="Экспорт в Excel…", command=self.export_to_excel)
-        menubar.add_cascade(label="Файл", menu=file_menu)
+        file_menu.add_command(label=self._("menu.export_excel"), command=self.export_to_excel)
+        self._register_menu_text(file_menu, file_menu.index("end"), "menu.export_excel")
+
+        menubar.add_cascade(label=self._("menu.file"), menu=file_menu)
+        self._register_menu_text(menubar, menubar.index("end"), "menu.file")
+
+        language_menu = tk.Menu(menubar, tearoff=0)
+        for code, name in self.LANGUAGES.items():
+            language_menu.add_radiobutton(
+                label=name,
+                variable=self._language,
+                value=code,
+                command=self._apply_language,
+            )
+        menubar.add_cascade(label=self._("menu.language"), menu=language_menu)
+        self._register_menu_text(menubar, menubar.index("end"), "menu.language")
+
         self.config(menu=menubar)
 
     def _build_layout(self) -> None:
         notebook = ttk.Notebook(self)
         notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self._notebook = notebook
 
         main_tab = ttk.Frame(notebook)
-        notebook.add(main_tab, text="Расчёт")
+        notebook.add(main_tab, text="")
+        self._register_notebook_tab(main_tab, "tab.calculation")
+        self._tabs["tab.calculation"] = main_tab
 
         help_tab = ttk.Frame(notebook)
-        notebook.add(help_tab, text="Помощь")
+        notebook.add(help_tab, text="")
+        self._register_notebook_tab(help_tab, "tab.help")
+        self._tabs["tab.help"] = help_tab
 
         container = ttk.Frame(main_tab)
         container.pack(fill=tk.BOTH, expand=True)
 
-        form_frame = ttk.LabelFrame(container, text="Ввод данных")
+        form_frame = ttk.LabelFrame(container)
         form_frame.pack(fill=tk.X, expand=False, side=tk.TOP, pady=(0, 10))
+        self._bind_text(lambda value, widget=form_frame: widget.configure(text=value), "frame.input")
         self._build_form(form_frame)
 
-        intermediate_frame = ttk.LabelFrame(container, text="Промежуточные результаты")
+        intermediate_frame = ttk.LabelFrame(container)
         intermediate_frame.pack(fill=tk.X, expand=False, side=tk.TOP, pady=(0, 10))
+        self._bind_text(
+            lambda value, widget=intermediate_frame: widget.configure(text=value), "frame.intermediate"
+        )
         self._build_intermediate_panel(intermediate_frame)
 
-        table_frame = ttk.LabelFrame(container, text="Результаты расчёта")
+        table_frame = ttk.LabelFrame(container)
         table_frame.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
+        self._bind_text(lambda value, widget=table_frame: widget.configure(text=value), "frame.table")
         self._build_table(table_frame)
 
         self._register_form_traces()
@@ -453,22 +1037,11 @@ class CableCalcApp(tk.Tk):
     def _build_help_tab(self, parent: ttk.Frame) -> None:
         text = tk.Text(parent, wrap="word", height=10)
         text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        help_lines = [
-            "Описание коэффициентов IEC 60364:\n",
-            "S — коэффициент группировки кабелей. Он учитывает влияние совместной прокладки нескольких кабелей на допустимый ток. Значение < 1 уменьшает допустимый ток при плотной укладке.\n",
-            "T — коэффициент температуры окружающей среды. Корректирует допустимую нагрузку в зависимости от фактической температуры воздуха или грунта относительно табличных условий.\n",
-            "η — КПД установки. При η < 1 ток уменьшается, если Pi учитывает потери, и увеличивается, если Pi описывает полезную мощность. Укажите значение согласно паспорту оборудования.\n",
-            "Kj — коэффициент спроса (коэффициент одновременности) для расчёта нагрузки группы потребителей.\n",
-            "ΔU — допустимое падение напряжения по выбранному ключу (UIDM, SVDM, SVTS, UITS) согласно разделам IEC 60364, указывающее максимально допустимое отклонение напряжения в процентах.\n",
-            "cos φ — коэффициент мощности нагрузки.\n",
-            "При необходимости уточнения коэффициентов IEC 60364 применяйте значения из национальных приложений или таблиц стандарта, учитывая условия прокладки и категорию потребителей.\n",
-        ]
-
-        text.insert("1.0", "\n".join(help_lines))
-        text.configure(state="disabled")
+        self._help_text_widget = text
+        self._update_help_text()
 
     def _build_form(self, parent: ttk.Frame) -> None:
+        default_medium_display = self.TEMPERATURE_MEDIA[self._medium_selected_key][self.DEFAULT_LANGUAGE]
         field_specs = [
             ("Strujni krug", ""),
             ("Deonica OD", ""),
@@ -487,7 +1060,7 @@ class CableCalcApp(tk.Tk):
             ("Način polaganja", self.INSTALLATION_METHODS[4]),
             ("Нагруженные жилы (nž)", "3"),
             ("Число цепей", "1"),
-            ("Среда для Т", self.TEMPERATURE_MEDIA[0]),
+            ("Среда для Т", default_medium_display),
             ("Температура, °C", "30"),
             ("S", "1.0"),
             ("T", "1.0"),
@@ -513,7 +1086,10 @@ class CableCalcApp(tk.Tk):
             label_col = column * 2
             entry_col = label_col + 1
 
-            ttk.Label(grid, text=label).grid(row=row, column=label_col, sticky=tk.W, pady=4, padx=(0, 8))
+            label_widget = ttk.Label(grid, text="")
+            label_widget.grid(row=row, column=label_col, sticky=tk.W, pady=4, padx=(0, 8))
+            label_key = self.LABEL_KEY_MAP.get(label, label)
+            self._bind_text(lambda value, widget=label_widget: widget.configure(text=value), label_key)
 
             var = tk.StringVar(value=default)
             self._form_values[label] = var
@@ -533,7 +1109,13 @@ class CableCalcApp(tk.Tk):
                     grid, textvariable=var, values=[str(i) for i in range(1, 21)], state="readonly"
                 )
             elif label == "Среда для Т":
-                widget = ttk.Combobox(grid, textvariable=var, values=self.TEMPERATURE_MEDIA, state="readonly")
+                medium_values = [
+                    meta.get(self._language.get(), meta.get(self.DEFAULT_LANGUAGE, ""))
+                    for meta in self.TEMPERATURE_MEDIA.values()
+                ]
+                widget = ttk.Combobox(grid, textvariable=var, values=medium_values, state="readonly")
+                widget.bind("<<ComboboxSelected>>", self._on_medium_changed)
+                self._medium_combobox = widget
             elif label == "Ключ ΔU":
                 widget = ttk.Combobox(
                     grid, textvariable=var, values=list(self.DROP_LIMIT_KEYS.keys()), state="readonly"
@@ -548,6 +1130,7 @@ class CableCalcApp(tk.Tk):
             original_style = widget.cget("style") or widget_class
             self._input_widgets[label] = widget
             self._input_styles[label] = original_style
+            self._attach_tooltip(widget, label_key)
 
         pi_var = self._form_values["Pi, W"]
         kj_var = self._form_values["Kj"]
@@ -572,6 +1155,7 @@ class CableCalcApp(tk.Tk):
             ("По ΔU", "По ΔU"),
             ("I2 [A]", "I2 [A]"),
             ("Защита", "Защита"),
+            ("Совместимость IEC", "Совместимость IEC"),
         ]
 
         columns = 3
@@ -584,9 +1168,10 @@ class CableCalcApp(tk.Tk):
             label_col = (index % columns) * 2
             value_col = label_col + 1
 
-            ttk.Label(grid, text=label_text, style="ResultKey.TLabel").grid(
-                row=row, column=label_col, sticky=tk.W, pady=4, padx=(0, 8)
-            )
+            label_widget = ttk.Label(grid, text="", style="ResultKey.TLabel")
+            label_widget.grid(row=row, column=label_col, sticky=tk.W, pady=4, padx=(0, 8))
+            label_key = self.RESULT_LABEL_KEY_MAP.get(label_text, label_text)
+            self._bind_text(lambda value, widget=label_widget: widget.configure(text=value), label_key)
 
             var = tk.StringVar(value="—")
             value_label = ttk.Label(grid, textvariable=var, style="ResultValue.TLabel")
@@ -597,10 +1182,13 @@ class CableCalcApp(tk.Tk):
         button_frame = ttk.Frame(parent)
         button_frame.pack(fill=tk.X, pady=(10, 0))
 
-        ttk.Button(button_frame, text="Рассчитать и добавить строку", command=self.add_row).pack(
-            side=tk.LEFT, padx=(0, 5)
-        )
-        ttk.Button(button_frame, text="Очистить список", command=self.clear_table).pack(side=tk.LEFT)
+        add_button = ttk.Button(button_frame, text="", command=self.add_row)
+        add_button.pack(side=tk.LEFT, padx=(0, 5))
+        self._bind_text(lambda value, widget=add_button: widget.configure(text=value), "button.add_row")
+
+        clear_button = ttk.Button(button_frame, text="", command=self.clear_table)
+        clear_button.pack(side=tk.LEFT)
+        self._bind_text(lambda value, widget=clear_button: widget.configure(text=value), "button.clear")
 
     def _build_table(self, parent: ttk.Frame) -> None:
         columns = self.TREE_COLUMNS
@@ -614,7 +1202,8 @@ class CableCalcApp(tk.Tk):
         self.tree = tree
 
         for col in columns:
-            tree.heading(col, text=col)
+            key = self.TREE_COLUMN_KEYS.get(col, col)
+            self._register_tree_heading(col, key)
             tree.column(col, width=120, anchor=tk.CENTER)
 
         tree.grid(row=0, column=0, sticky=tk.NSEW)
@@ -647,11 +1236,13 @@ class CableCalcApp(tk.Tk):
         value = value.strip()
         if not value:
             messagebox.showerror("Ошибка ввода", f"Поле '{field_name}' должно быть заполнено числом.")
+            logging.error("Пустое значение в поле '%s'", field_name)
             return None
         try:
             return float(value.replace(",", "."))
         except ValueError:
             messagebox.showerror("Ошибка ввода", f"Поле '{field_name}' содержит недопустимое значение: {value}")
+            logging.error("Некорректное значение '%s' в поле '%s'", value, field_name)
             return None
 
     def _lookup_ampacity(
@@ -707,7 +1298,7 @@ class CableCalcApp(tk.Tk):
         return self.GROUPING_FACTORS.get(circuits, self.GROUPING_FACTORS[max_defined])
 
     def _lookup_temperature_factor(self, insulation_key: str, medium: str, temperature: float) -> float | None:
-        if medium == "Грунт":
+        if medium == "soil":
             table = self.KT_Z_TABLE.get(insulation_key)
         else:
             table = self.KT_V_TABLE.get(insulation_key)
@@ -784,6 +1375,12 @@ class CableCalcApp(tk.Tk):
         if self._last_temperature_warning == key:
             return
         self._last_temperature_warning = key
+        logging.warning(
+            "Температура вне диапазона для изоляции %s, среды %s: %s °C",
+            insulation_key,
+            medium,
+            rounded_temp,
+        )
         messagebox.showwarning(
             "Температура вне диапазона",
             "Для выбранной изоляции и среды отсутствует табличный коэффициент при температуре "
@@ -809,9 +1406,10 @@ class CableCalcApp(tk.Tk):
         laying = self._form_values["Način polaganja"].get().strip()
         loaded_cores_value = self._form_values["Нагруженные жилы (nž)"].get().strip()
         circuits_value = self._form_values["Число цепей"].get().strip()
-        medium = self._form_values["Среда для Т"].get().strip()
-        if medium not in self.TEMPERATURE_MEDIA:
-            medium = self.TEMPERATURE_MEDIA[0]
+        if self._medium_selected_key not in self.TEMPERATURE_MEDIA:
+            self._medium_selected_key = next(iter(self.TEMPERATURE_MEDIA))
+            self._update_medium_options()
+        medium_key = self._medium_selected_key
         drop_key = self._form_values["Ключ ΔU"].get()
         limit_delta = self.DROP_LIMIT_KEYS.get(drop_key)
         if limit_delta is not None:
@@ -856,7 +1454,7 @@ class CableCalcApp(tk.Tk):
         temperature_alert = False
         t_coeff: float | None = None
         if insulation_meta is not None and temperature is not None:
-            temp_factor = self._lookup_temperature_factor(insulation_meta["key"], medium, temperature)
+            temp_factor = self._lookup_temperature_factor(insulation_meta["key"], medium_key, temperature)
             if temp_factor is not None and temp_factor > 0:
                 t_coeff = temp_factor
             else:
@@ -870,7 +1468,7 @@ class CableCalcApp(tk.Tk):
         else:
             t_display = ""
             if temperature is not None and insulation_meta is not None:
-                self._show_temperature_warning(insulation_meta["key"], medium, temperature)
+                self._show_temperature_warning(insulation_meta["key"], medium_key, temperature)
         self._form_values["T"].set(t_display)
         self._intermediate_vars["T"].set(t_display or "—")
         self._set_entry_alert("Температура, °C", temperature_alert)
@@ -937,10 +1535,23 @@ class CableCalcApp(tk.Tk):
             self._intermediate_vars["R_base [Ω/km]"].set(f"{r_per_km:.3f}")
 
         base_ampacity = None
+        compat_display = "—"
+        compat_alert = False
         if area is not None and insulation_meta is not None:
             base_ampacity = self._lookup_ampacity(
                 insulation_meta["key"], conductor, laying, area, loaded_cores
             )
+            if base_ampacity is None:
+                compat_display = self._("status.no_data")
+                compat_alert = True
+            else:
+                compat_display = self._("status.ok")
+        elif insulation_meta is not None:
+            compat_display = "—"
+
+        if "Совместимость IEC" in self._intermediate_vars:
+            self._intermediate_vars["Совместимость IEC"].set(compat_display)
+            self._set_result_alert("Совместимость IEC", compat_alert)
 
         iz_numeric = None
         if base_ampacity is not None and t_coeff is not None:
@@ -1065,7 +1676,7 @@ class CableCalcApp(tk.Tk):
         laying = self._form_values["Način polaganja"].get().strip()
         voltage = self._form_values["U"].get()
         drop_key = self._form_values["Ключ ΔU"].get()
-        medium = self._form_values["Среда для Т"].get().strip()
+        medium_key = self._medium_selected_key
 
         pi = self._parse_float(self._form_values["Pi, W"].get(), "Pi, W")
         if pi is None:
@@ -1081,6 +1692,7 @@ class CableCalcApp(tk.Tk):
                 "Ошибка ввода",
                 "Поле 'η' должно содержать значение в диапазоне (0; 1].",
             )
+            logging.error("Недопустимое значение КПД: %s", eta)
             return
         cos_phi = self._parse_float(self._form_values["cos φ"].get(), "cos φ")
         if cos_phi is None:
@@ -1090,6 +1702,7 @@ class CableCalcApp(tk.Tk):
                 "Ошибка ввода",
                 "Поле 'cos φ' должно содержать значение от 0 (исключительно) до 1.",
             )
+            logging.error("Недопустимое значение cosφ: %s", cos_phi)
             return
         length = self._parse_float(self._form_values["Dužina L, m"].get(), "Dužina L, m")
         if length is None:
@@ -1097,6 +1710,7 @@ class CableCalcApp(tk.Tk):
         area = self._parse_float(self._form_values["Presek, mm²"].get(), "Presek, mm²")
         if area is None or area == 0:
             messagebox.showerror("Ошибка ввода", "Поле 'Presek, mm²' должно быть положительным числом.")
+            logging.error("Недопустимое значение сечения: %s", area)
             return
 
         insulation_meta = self.INSULATION_META.get(insulation_label)
@@ -1111,6 +1725,7 @@ class CableCalcApp(tk.Tk):
                 raise ValueError
         except ValueError:
             messagebox.showerror("Ошибка ввода", "Поле 'Нагруженные жилы (nž)' должно быть 2 или 3.")
+            logging.error("Некорректное значение нагруженных жил: %s", loaded_value)
             return
 
         circuits_value = self._form_values["Число цепей"].get().strip()
@@ -1126,7 +1741,7 @@ class CableCalcApp(tk.Tk):
         temperature = self._try_parse_float(self._form_values["Температура, °C"].get())
         t_coeff = 1.0
         if temperature is not None:
-            temp_factor = self._lookup_temperature_factor(insulation_meta["key"], medium, temperature)
+            temp_factor = self._lookup_temperature_factor(insulation_meta["key"], medium_key, temperature)
             if temp_factor is not None and temp_factor > 0:
                 t_coeff = temp_factor
             else:
@@ -1134,6 +1749,7 @@ class CableCalcApp(tk.Tk):
                     "Ошибка ввода",
                     "Температура выходит за пределы табличных значений IEC 60364. Укажите корректную температуру.",
                 )
+                logging.error("Температура вне диапазона: %s °C", temperature)
                 return
 
         pj = pi * kj
@@ -1144,6 +1760,14 @@ class CableCalcApp(tk.Tk):
         denominator = phase_factor * voltage_value * cos_phi
         if denominator == 0:
             messagebox.showerror("Ошибка расчёта", "Комбинация параметров приводит к делению на ноль.")
+            logging.error(
+                "Деление на ноль при расчёте тока: pj=%s, eta=%s, voltage=%s, cosφ=%s, phase_factor=%s",
+                pj,
+                eta,
+                voltage_value,
+                cos_phi,
+                phase_factor,
+            )
             return
         icalc = (pj * eta) / denominator
 
@@ -1165,9 +1789,19 @@ class CableCalcApp(tk.Tk):
                 "Для выбранной комбинации изоляции, проводника и способа прокладки нет табличных данных IEC 60364.\n"
                 "Проверка по току пропущена.",
             )
+            logging.warning(
+                "Нет табличных данных IEC 60364 для комбинации: insulation=%s, conductor=%s, laying=%s, area=%s, cores=%s",
+                insulation_meta["key"],
+                conductor,
+                laying,
+                area,
+                loaded_cores,
+            )
             iz_numeric = None
+            compatibility_status = self._("status.no_data")
         else:
             iz_numeric = base_ampacity * s_coeff * t_coeff
+            compatibility_status = self._("status.ok")
 
         if iz_numeric is not None:
             ampacity_ok = "OK" if icalc <= iz_numeric else "NE"
@@ -1225,6 +1859,7 @@ class CableCalcApp(tk.Tk):
             "По ΔU": drop_ok,
             "Защита": protection_status,
             "Ключ": drop_key,
+            "Совместимость IEC": compatibility_status,
         }
 
         values = [row_data[column] for column in self.TREE_COLUMNS]
@@ -1255,6 +1890,7 @@ class CableCalcApp(tk.Tk):
                 json.dump(data, handle, ensure_ascii=False, indent=2)
         except OSError as exc:
             messagebox.showerror("Ошибка", f"Не удалось сохранить проект: {exc}")
+            logging.error("Ошибка сохранения проекта '%s': %s", file_path, exc)
         else:
             messagebox.showinfo("Сохранение", "Проект успешно сохранён.")
 
@@ -1272,6 +1908,7 @@ class CableCalcApp(tk.Tk):
                 payload = json.load(handle)
         except (OSError, json.JSONDecodeError) as exc:
             messagebox.showerror("Ошибка", f"Не удалось загрузить проект: {exc}")
+            logging.error("Ошибка загрузки проекта '%s': %s", file_path, exc)
             return
 
         form_data = payload.get("form", {})
@@ -1279,7 +1916,10 @@ class CableCalcApp(tk.Tk):
 
         for name, value in form_data.items():
             if name in self._form_values:
-                self._form_values[name].set(str(value))
+                if name == "Среда для Т":
+                    self._set_medium_from_value(str(value))
+                else:
+                    self._form_values[name].set(str(value))
 
         self.clear_table()
 
@@ -1311,6 +1951,7 @@ class CableCalcApp(tk.Tk):
             messagebox.showinfo("Экспорт", "Данные успешно сохранены.")
         except OSError as exc:
             messagebox.showerror("Ошибка", f"Не удалось сохранить файл: {exc}")
+            logging.error("Ошибка экспорта Excel '%s': %s", file_path, exc)
 
     def _write_simple_xlsx(self, file_path: str) -> None:
         workbook_xml = (
@@ -1364,7 +2005,7 @@ class CableCalcApp(tk.Tk):
 
         rows: list[str] = []
 
-        header_row = self.TREE_COLUMNS
+        header_row = [self._(self.TREE_COLUMN_KEYS.get(col, col)) for col in self.TREE_COLUMNS]
         rows.append(self._build_row_xml(1, header_row, column_letter))
 
         for row_idx, data in enumerate(self._table_data, start=2):
