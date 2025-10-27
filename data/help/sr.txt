@@ -1,0 +1,42 @@
+Uputstvo za program za proračun kablova (IEC 60364):
+
+Opšti opis:
+Program je namenjen za proračun parametara kablovskih linija prema standardu IEC 60364-5-52. Omogućava određivanje dopustive struje (Iz), pada napona (ΔU), odabir preseka kabla i parametara zaštitnog uređaja, kao i proveru usaglašenosti sa zahtevima IEC 60364-4-43. Podržava bakarne (Cu) i aluminijumske (Al) provodnike, izolaciju PVC i XLPE/EPR, i različite metode polaganja (A1, A2, B1, B2, C, D, E, F, G).
+
+Glavne funkcije:
+- Proračun parametara: Unesite podatke (snaga, napon, dužina, presek, itd.) za izračunavanje struje opterećenja (Icalc), dopustive struje (Iz), pada napona (ΔU) i ukupnog pada napona (Ukupni ΔU %).
+- Provera zaštite: Proverava usaglašenost nazivne struje zaštite (In) i struje okidanja (I2) sa uslovima: Icalc ≤ In ≤ Iz i I2 ≤ 1.45 × Iz.
+- Automatski odabir parametara: Dugme "Odaberi parametre" bira minimalni presek i nazivnu struju zaštite (In) koji zadovoljavaju zahteve za struju i ΔU.
+- Uređivanje i brisanje: Koristite dugmad "Učitaj red u formu" i "Obriši izabrani red" za uređivanje ili uklanjanje unosa u tabeli rezultata.
+- Izvoz i čuvanje: Sačuvajte projekat u JSON formatu ("Sačuvaj projekat") i izvezite rezultate u Excel ("Izvoz u Excel") sa automatskim filterima i formatiranjem.
+- Lokalizacija: Podrška za srpski, ruski i engleski jezik putem menija "Jezik".
+
+Koeficijenti i parametri:
+- S (Kn): Koeficijent grupisanja, automatski se računa na osnovu broja kablova u grupi; ako je označeno "Uvažavaj n∥ u S", paralelni kablovi se dodaju broju.
+- T (Kt): Temperaturni koeficijent za vazduh ili tlo, automatski se bira iz tabela IEC 60364-5-52.
+- η: Efikasnost postrojenja, mora biti u opsegu (0;1].
+- Kj: Koeficijent istovremenosti za grupu potrošača.
+- ΔU: Dozvoljeni pad napona (UIDM 5%, SVDM 3%, SVTS 5%, UITS 8%).
+- cos φ: Faktor snage opterećenja (0;1].
+- In, k: Parametri zaštite: nazivna struja (In) i odnos okidanja (I2/In).
+- ϭ: Specifična provodnost provodnika (m/Ω·mm²) = 1/ρ.
+- n∥: Broj paralelnih kablova (dele Icalc/n∥ i R/X/n∥).
+
+Metode polaganja (IEC 60364-5-52):
+- A1, A2, B1, B2, C, D, E, F, G (opis kao u standardu).
+
+Uputstvo za korišćenje:
+1. Popunite polja: krug, Pi, Kj, η, U, cos φ, L, presek, metod, nž, itd.
+2. U=230 V samo sa nž=2; U=400 V sa nž=3.
+3. Odaberite metod polaganja prema uslovima (npr. D za tlo, C za površinu).
+4. "Odaberi parametre" za automatski izbor preseka i In.
+5. "Izračunaj i dodaj red" da biste sačuvali rezultat.
+6. Proverite "IEC kompatibilnost".
+7. Po potrebi uredite ili obrišite red.
+8. Sačuvajte projekat ili izvezite u Excel.
+
+Napomene:
+- Upozorenje ako temperatura izlazi iz tabela IEC.
+- Ako Icalc > Iz ili ΔU prevelik, biće date preporuke.
+- Proverite unose radi izbegavanja grešaka.
+

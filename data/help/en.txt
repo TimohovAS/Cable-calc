@@ -1,0 +1,42 @@
+Guide to the Cable Calculation Program (IEC 60364):
+
+Overview:
+This program calculates cable parameters per IEC 60364-5-52: permissible current (Iz), voltage drop (ΔU), cable sizing, protective device parameters, and compliance with IEC 60364-4-43. Supports Cu/Al conductors, PVC and XLPE/EPR insulation, and installation methods A1–G.
+
+Main Features:
+- Parameter calculation: compute Icalc, Iz, ΔU, and cumulative voltage drop.
+- Protection check: Icalc ≤ In ≤ Iz and I2 ≤ 1.45 × Iz.
+- Automatic selection: choose minimum cross-section and In that satisfy current and ΔU limits.
+- Edit/delete rows in the results table.
+- Save to JSON; export to Excel with autofilter.
+- Localization: Russian, Serbian, English.
+
+Coefficients and Parameters:
+- S (Kn): grouping factor; option to include parallel n∥.
+- T (Kt): temperature factor (air/soil) from IEC tables.
+- η: efficiency (0;1].
+- Kj: demand factor.
+- ΔU limits: UIDM 5%, SVDM 3%, SVTS 5%, UITS 8%.
+- cos φ: power factor (0;1].
+- In, k: protective device ratings; I2/In ratio.
+- ϭ: specific conductivity (m/Ω·mm²) = 1/ρ.
+- n∥: number of parallel cables.
+
+Installation Methods:
+A1, A2, B1, B2, C, D, E, F, G per IEC 60364-5-52.
+
+Usage:
+1. Fill inputs: circuit, Pi, Kj, η, U, cos φ, L, cross-section, method, nž, etc.
+2. Use 230 V with nž=2; 400 V with nž=3.
+3. Choose method based on installation (e.g., D for soil, C for surface).
+4. Use "Select parameters" for automatic sizing.
+5. Click "Calculate and add row" to save.
+6. Check IEC compatibility.
+7. Edit or remove rows as needed.
+8. Save project or export to Excel.
+
+Notes:
+- Warns if temperature is outside IEC tables.
+- Provides recommendations if constraints fail.
+- Verify inputs to avoid errors.
+
