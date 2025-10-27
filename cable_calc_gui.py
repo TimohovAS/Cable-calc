@@ -347,8 +347,17 @@ class CableCalcApp(tk.Tk):
         self.config(menu=menubar)
 
     def _build_layout(self) -> None:
-        container = ttk.Frame(self)
-        container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        notebook = ttk.Notebook(self)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        main_tab = ttk.Frame(notebook)
+        notebook.add(main_tab, text="Расчёт")
+
+        help_tab = ttk.Frame(notebook)
+        notebook.add(help_tab, text="Помощь")
+
+        container = ttk.Frame(main_tab)
+        container.pack(fill=tk.BOTH, expand=True)
 
         form_frame = ttk.LabelFrame(container, text="Ввод данных")
         form_frame.pack(fill=tk.X, expand=False, side=tk.TOP, pady=(0, 10))
@@ -363,6 +372,26 @@ class CableCalcApp(tk.Tk):
         self._build_table(table_frame)
 
         self._register_form_traces()
+
+        self._build_help_tab(help_tab)
+
+    def _build_help_tab(self, parent: ttk.Frame) -> None:
+        text = tk.Text(parent, wrap="word", height=10)
+        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        help_lines = [
+            "Описание коэффициентов IEC 60364:\n",
+            "S — коэффициент группировки кабелей. Он учитывает влияние совместной прокладки нескольких кабелей на допустимый ток. Значение < 1 уменьшает допустимый ток при плотной укладке.\n",
+            "T — коэффициент температуры окружающей среды. Корректирует допустимую нагрузку в зависимости от фактической температуры воздуха или грунта относительно табличных условий.\n",
+            "Ucf — коэффициент способа прокладки. Используется для корректировки расчётного тока при отличии реального способа прокладки от базовых условий IEC 60364.\n",
+            "Kj — коэффициент спроса (коэффициент одновременности) для расчёта нагрузки группы потребителей.\n",
+            "ΔU — допустимое падение напряжения по выбранному ключу (UIDM, SVDM, SVTS, UITS) согласно разделам IEC 60364, указывающее максимально допустимое отклонение напряжения в процентах.\n",
+            "cos φ — коэффициент мощности нагрузки.\n",
+            "При необходимости уточнения коэффициентов IEC 60364 применяйте значения из национальных приложений или таблиц стандарта, учитывая условия прокладки и категорию потребителей.\n",
+        ]
+
+        text.insert("1.0", "\n".join(help_lines))
+        text.configure(state="disabled")
 
     def _build_form(self, parent: ttk.Frame) -> None:
         field_specs = [
