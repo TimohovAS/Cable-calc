@@ -1172,7 +1172,6 @@ class CableCalcApp(tk.Tk):
             ("Pi, W", ""),
             ("Kj", ""),
             ("η", "1.0"),
-            ("Pj", ""),
             ("U", self.VOLTAGE_LEVELS[0]),
             ("cos φ", ""),
             ("Dužina L, m", ""),
@@ -1183,8 +1182,6 @@ class CableCalcApp(tk.Tk):
             ("Параллельные кабели (n∥)", "1"),
             ("Среда для Т", default_medium_display),
             ("Температура, °C", "30"),
-            ("S", "1.0"),
-            ("T", "1.0"),
             ("In, A", ""),
             ("k", "1.45"),
             ("Ключ ΔU", list(self.DROP_LIMIT_KEYS.keys())[0]),
@@ -1264,8 +1261,6 @@ class CableCalcApp(tk.Tk):
                     state="readonly",
                 )
                 self._combobox_values[label] = list(self.STANDARD_CROSS_SECTIONS)
-            elif label in {"Pj", "S", "T"}:
-                widget = ttk.Entry(grid, textvariable=var, state="readonly")
             elif label == "In, A":
                 widget = ttk.Combobox(
                     grid,
@@ -1288,6 +1283,10 @@ class CableCalcApp(tk.Tk):
         kj_var = self._form_values["Kj"]
         pi_var.trace_add("write", self._update_pj_display)
         kj_var.trace_add("write", self._update_pj_display)
+
+        for key, default in (("Pj", ""), ("S", "1.0"), ("T", "1.0")):
+            if key not in self._form_values:
+                self._form_values[key] = tk.StringVar(value=default)
 
     def _build_intermediate_panel(self, parent: ttk.Frame) -> None:
         grid = ttk.Frame(parent)
