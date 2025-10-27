@@ -135,6 +135,11 @@ class CableCalcApp(tk.Tk):
             "sr": "IEC kompatibilnost",
             "en": "IEC compatibility",
         },
+        "label.result.recommendations": {
+            "ru": "Рекомендации",
+            "sr": "Preporuke",
+            "en": "Recommendations",
+        },
         "column.circuit": {"ru": "Strujni krug", "sr": "Strujni krug", "en": "Circuit"},
         "column.from": {"ru": "OD", "sr": "OD", "en": "From"},
         "column.to": {"ru": "DO", "sr": "DO", "en": "To"},
@@ -387,6 +392,7 @@ class CableCalcApp(tk.Tk):
         "I2 [A]": "label.result.i2",
         "Защита": "label.result.protection",
         "Совместимость IEC": "label.result.compatibility",
+        "Рекомендации": "label.result.recommendations",
     }
 
     TREE_COLUMN_KEYS = {
@@ -488,6 +494,8 @@ class CableCalcApp(tk.Tk):
         "500",
         "630",
     ]
+    STANDARD_SECTIONS = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240, 300, 400, 500]
+    METHOD_PREFERENCE = ["D", "E", "F", "C", "B2", "B1", "A2", "A1", "G"]
     DROP_LIMIT_KEYS = {
         "UIDM": 5.0,
         "SVDM": 3.0,
@@ -896,6 +904,7 @@ class CableCalcApp(tk.Tk):
         self._help_text_widget: tk.Text | None = None
         self._notebook: ttk.Notebook | None = None
         self._tabs: dict[str, ttk.Frame] = {}
+        self._last_icalc: float | None = None
 
         self._build_menu()
         self._build_layout()
@@ -1245,6 +1254,7 @@ class CableCalcApp(tk.Tk):
             ("I2 [A]", "I2 [A]"),
             ("Защита", "Защита"),
             ("Совместимость IEC", "Совместимость IEC"),
+            ("Рекомендации", "Рекомендации"),
         ]
 
         columns = 3
@@ -1630,10 +1640,14 @@ class CableCalcApp(tk.Tk):
             phase_factor = 2.0 if loaded_cores == 2 else math.sqrt(3)
             denominator = phase_factor * voltage_value * cos_phi
             if denominator:
-                icalc = (pj * eta_coeff) / denominator
+                icalc = (pj / eta_coeff) / denominator
                 self._intermediate_vars["Icalc [A]"].set(f"{icalc:.3f}")
+                self._last_icalc = icalc
+            else:
+                self._last_icalc = None
         else:
             self._intermediate_vars["Icalc [A]"].set("—")
+            self._last_icalc = None
 
         r_per_km = None
         x_per_km = None
@@ -1771,6 +1785,48 @@ class CableCalcApp(tk.Tk):
         self._set_result_alert("Диапазон In [A]", in_range_alert or protection_alert)
         self._set_entry_alert("In, A", protection_alert)
 
+        recommendations: list[str] = []
+        recommendation_var = self._intermediate_vars.get("Рекомендации")
+        if recommendation_var is not None:
+            ampacity_var = self._intermediate_vars.get("По току")
+            drop_var = self._intermediate_vars.get("По ΔU")
+            ampacity_ne = ampacity_var.get() == "NE" if ampacity_var is not None else False
+            drop_ne = drop_var.get() == "NE" if drop_var is not None else False
+            if ampacity_ne or drop_ne:
+                insulation_label_current = self._form_values["Tip-IZOLACIJE"].get()
+                insulation_meta = self.INSULATION_META.get(
+                    insulation_label_current, {"key": "PVC", "theta": 70}
+                )
+                try:
+                    loaded_cores_rec = int(self._form_values["Нагруженные жилы (nž)"].get() or "3")
+                except ValueError:
+                    loaded_cores_rec = 3
+                try:
+                    s_value = float(self._form_values["S"].get() or 1)
+                except ValueError:
+                    s_value = 1.0
+                try:
+                    t_value = float(self._form_values["T"].get() or 1)
+                except ValueError:
+                    t_value = 1.0
+                recs = self._recommend(
+                    U=voltage_value or 0,
+                    cos_phi=cos_phi or 0,
+                    L=length or 0,
+                    conductor=conductor,
+                    insulation_key=insulation_meta.get("key", "PVC"),
+                    insulation_theta=insulation_meta.get("theta", 70),
+                    method=laying,
+                    loaded_cores=loaded_cores_rec,
+                    S=s_value,
+                    T=t_value,
+                    limit_pct=self.DROP_LIMIT_KEYS.get(self._form_values["Ключ ΔU"].get()),
+                    current_area=self._try_parse_float(self._form_values["Presek, mm²"].get()) or 0,
+                    icalc=self._last_icalc or 0,
+                )
+                recommendations = recs or []
+            recommendation_var.set("\n".join(recommendations) if recommendations else "—")
+
     def _sum_drop_for_circuit(self, circuit: str) -> float:
         if not circuit:
             return 0.0
@@ -1782,6 +1838,105 @@ class CableCalcApp(tk.Tk):
                 except (TypeError, ValueError):
                     continue
         return total
+
+    def _drop_pct(
+        self,
+        U: float,
+        cos_phi: float,
+        L_m: float,
+        conductor: str,
+        insulation_theta: float,
+        area_mm2: float,
+        method: str,
+        loaded_cores: int,
+        icalc: float,
+    ) -> float:
+        r_km, x_km = self._calculate_line_impedance(conductor, insulation_theta, area_mm2, method)
+        r_m, x_m = r_km / 1000.0, x_km / 1000.0
+        sin_phi = math.sqrt(max(0.0, 1.0 - min(1.0, cos_phi) ** 2))
+        phase = 2.0 if loaded_cores == 2 else math.sqrt(3)
+        if U == 0:
+            return 0.0
+        return phase * icalc * (r_m * cos_phi + x_m * sin_phi) * L_m * 100.0 / U
+
+    def _recommend(
+        self,
+        *,
+        U: float,
+        cos_phi: float,
+        L: float,
+        conductor: str,
+        insulation_key: str,
+        insulation_theta: float,
+        method: str,
+        loaded_cores: int,
+        S: float,
+        T: float,
+        limit_pct: float | None,
+        current_area: float,
+        icalc: float,
+    ) -> list[str]:
+        recs: list[str] = []
+        if not icalc or S <= 0 or T <= 0:
+            return recs
+        iz_req = icalc / (S * T)
+
+        for a in self.STANDARD_SECTIONS:
+            if a < (current_area or 0):
+                continue
+            iz_base = self._lookup_ampacity(insulation_key, conductor, method, a, loaded_cores)
+            if not iz_base:
+                continue
+            iz = iz_base * S * T
+            if iz < iz_req:
+                continue
+            d = self._drop_pct(U, cos_phi, L, conductor, insulation_theta, a, method, loaded_cores, icalc)
+            if limit_pct is None or d <= limit_pct:
+                recs.append(f"Увеличить сечение до {a} мм² → Iz≈{iz:.0f} A, ΔU≈{d:.2f}%")
+                return recs
+
+        for m in self.METHOD_PREFERENCE:
+            if m == method:
+                continue
+            for a in self.STANDARD_SECTIONS:
+                iz_base = self._lookup_ampacity(insulation_key, conductor, m, a, loaded_cores)
+                if not iz_base:
+                    continue
+                iz = iz_base * S * T
+                if iz < iz_req:
+                    continue
+                d = self._drop_pct(U, cos_phi, L, conductor, insulation_theta, a, m, loaded_cores, icalc)
+                if limit_pct is None or d <= limit_pct:
+                    recs.append(f"Сменить метод на {m} и сечение {a} мм² → Iz≈{iz:.0f} A, ΔU≈{d:.2f}%")
+                    return recs
+
+        if insulation_key == "PVC":
+            xlpe_meta = self.INSULATION_META.get("XLPE/EPR (90°C)")
+            xlpe_theta = xlpe_meta.get("theta") if xlpe_meta else 90
+            for a in self.STANDARD_SECTIONS:
+                iz_base = self._lookup_ampacity("XLPE", conductor, method, a, loaded_cores)
+                if not iz_base:
+                    continue
+                iz = iz_base * S * T
+                if iz < iz_req:
+                    continue
+                d = self._drop_pct(U, cos_phi, L, conductor, xlpe_theta, a, method, loaded_cores, icalc)
+                if limit_pct is None or d <= limit_pct:
+                    recs.append(f"Перейти на XLPE и {a} мм² → Iz≈{iz:.0f} A, ΔU≈{d:.2f}%")
+                    return recs
+
+        if limit_pct is not None:
+            a0 = max(current_area or self.STANDARD_SECTIONS[0], self.STANDARD_SECTIONS[0])
+            d_now = self._drop_pct(U, cos_phi, L, conductor, insulation_theta, a0, method, loaded_cores, icalc)
+            if d_now > limit_pct:
+                n = math.ceil(d_now / max(limit_pct, 1e-9))
+                if n > 1:
+                    recs.append(
+                        f"Разделить на {n} параллельных кабеля того же типа (ΔU≈{d_now / n:.2f}%)"
+                    )
+
+        recs.append("Снизить число параллельных цепей (увеличить S) или повысить напряжение.")
+        return recs
 
     def add_row(self) -> None:
         self._update_intermediate_results()
@@ -1887,7 +2042,7 @@ class CableCalcApp(tk.Tk):
                 phase_factor,
             )
             return
-        icalc = (pj * eta) / denominator
+        icalc = (pj / eta) / denominator
 
         r_per_km, x_per_km = self._calculate_line_impedance(conductor, insulation_meta["theta"], area, laying)
         r_per_meter = r_per_km / 1000.0
@@ -1944,6 +2099,15 @@ class CableCalcApp(tk.Tk):
         elif in_value is not None and k_value is not None:
             i2_value = in_value * k_value
             protection_status = "N/A"
+
+        if ampacity_ok == "NE" or drop_ok == "NE":
+            rec_msg = (
+                self._intermediate_vars.get("Рекомендации").get()
+                if "Рекомендации" in self._intermediate_vars
+                else ""
+            )
+            if rec_msg and rec_msg != "—":
+                messagebox.showinfo("Рекомендации по подбору", rec_msg)
 
         row_data = {
             "Strujni krug": strujni_krug,
