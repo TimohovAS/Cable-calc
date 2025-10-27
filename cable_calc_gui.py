@@ -440,6 +440,54 @@ class CableCalcApp(tk.Tk):
         "soil": {"ru": "Грунт", "sr": "Tlo", "en": "Soil"},
     }
     INSTALLATION_METHODS = ["A1", "A2", "B1", "B2", "C", "D", "E", "F", "G"]
+    STANDARD_CROSS_SECTIONS = [
+        "",
+        "0.5",
+        "0.75",
+        "1",
+        "1.5",
+        "2.5",
+        "4",
+        "6",
+        "10",
+        "16",
+        "25",
+        "35",
+        "50",
+        "70",
+        "95",
+        "120",
+        "150",
+        "185",
+        "240",
+        "300",
+        "400",
+        "500",
+        "630",
+    ]
+    STANDARD_BREAKER_RATINGS = [
+        "",
+        "6",
+        "10",
+        "13",
+        "16",
+        "20",
+        "25",
+        "32",
+        "40",
+        "50",
+        "63",
+        "80",
+        "100",
+        "125",
+        "160",
+        "200",
+        "250",
+        "315",
+        "400",
+        "500",
+        "630",
+    ]
     DROP_LIMIT_KEYS = {
         "UIDM": 5.0,
         "SVDM": 3.0,
@@ -823,10 +871,16 @@ class CableCalcApp(tk.Tk):
         self.style.map("ResultAlert.TLabel", background=[("!disabled", "#ffe6e6")])
         self.style.configure("Invalid.TEntry", fieldbackground="#ffe6e6")
         self.style.map("Invalid.TEntry", fieldbackground=[("!disabled", "#ffe6e6")])
+        self.style.configure("Invalid.TCombobox", fieldbackground="#ffe6e6")
+        self.style.map(
+            "Invalid.TCombobox",
+            fieldbackground=[("readonly", "#ffe6e6"), ("!disabled", "#ffe6e6")],
+        )
 
         self._form_values: dict[str, tk.Variable] = {}
         self._input_widgets: dict[str, ttk.Widget] = {}
         self._input_styles: dict[str, str] = {}
+        self._combobox_values: dict[str, list[str]] = {}
         self._intermediate_vars: dict[str, tk.StringVar] = {}
         self._intermediate_labels: dict[str, ttk.Label] = {}
         self._table_data: list[dict[str, str]] = []
@@ -914,6 +968,7 @@ class CableCalcApp(tk.Tk):
         language = self._language.get()
         values = [meta.get(language, meta.get(self.DEFAULT_LANGUAGE, "")) for meta in self.TEMPERATURE_MEDIA.values()]
         self._medium_combobox.configure(values=values)
+        self._combobox_values["Среда для Т"] = values
         display = self.TEMPERATURE_MEDIA[self._medium_selected_key].get(
             language, self.TEMPERATURE_MEDIA[self._medium_selected_key][self.DEFAULT_LANGUAGE]
         )
@@ -1107,14 +1162,18 @@ class CableCalcApp(tk.Tk):
                 widget = ttk.Combobox(grid, textvariable=var, values=self.CONDUCTOR_TYPES, state="readonly")
             elif label == "U":
                 widget = ttk.Combobox(grid, textvariable=var, values=self.VOLTAGE_LEVELS, state="readonly")
+                self._combobox_values[label] = list(self.VOLTAGE_LEVELS)
             elif label == "Način polaganja":
                 widget = ttk.Combobox(grid, textvariable=var, values=self.INSTALLATION_METHODS, state="readonly")
+                self._combobox_values[label] = list(self.INSTALLATION_METHODS)
             elif label == "Нагруженные жилы (nž)":
                 widget = ttk.Combobox(grid, textvariable=var, values=["2", "3"], state="readonly")
+                self._combobox_values[label] = ["2", "3"]
             elif label == "Число цепей":
                 widget = ttk.Combobox(
                     grid, textvariable=var, values=[str(i) for i in range(1, 21)], state="readonly"
                 )
+                self._combobox_values[label] = [str(i) for i in range(1, 21)]
             elif label == "Среда для Т":
                 medium_values = [
                     meta.get(self._language.get(), meta.get(self.DEFAULT_LANGUAGE, ""))
@@ -1123,16 +1182,34 @@ class CableCalcApp(tk.Tk):
                 widget = ttk.Combobox(grid, textvariable=var, values=medium_values, state="readonly")
                 widget.bind("<<ComboboxSelected>>", self._on_medium_changed)
                 self._medium_combobox = widget
+                self._combobox_values[label] = medium_values
             elif label == "Ключ ΔU":
                 widget = ttk.Combobox(
                     grid, textvariable=var, values=list(self.DROP_LIMIT_KEYS.keys()), state="readonly"
                 )
+                self._combobox_values[label] = list(self.DROP_LIMIT_KEYS.keys())
             elif label == "Температура, °C":
                 widget = ttk.Entry(grid, textvariable=var)
                 widget.bind("<FocusIn>", self._on_temperature_focus_in)
                 widget.bind("<FocusOut>", self._on_temperature_focus_out)
+            elif label == "Presek, mm²":
+                widget = ttk.Combobox(
+                    grid,
+                    textvariable=var,
+                    values=self.STANDARD_CROSS_SECTIONS,
+                    state="readonly",
+                )
+                self._combobox_values[label] = list(self.STANDARD_CROSS_SECTIONS)
             elif label in {"Pj", "S", "T"}:
                 widget = ttk.Entry(grid, textvariable=var, state="readonly")
+            elif label == "In, A":
+                widget = ttk.Combobox(
+                    grid,
+                    textvariable=var,
+                    values=self.STANDARD_BREAKER_RATINGS,
+                    state="readonly",
+                )
+                self._combobox_values[label] = list(self.STANDARD_BREAKER_RATINGS)
             else:
                 widget = ttk.Entry(grid, textvariable=var)
 
@@ -1380,6 +1457,8 @@ class CableCalcApp(tk.Tk):
         widget_class = widget.winfo_class()
         if widget_class == "TEntry":
             widget.configure(style="Invalid.TEntry")
+        elif widget_class == "TCombobox":
+            widget.configure(style="Invalid.TCombobox")
 
     def _on_temperature_focus_in(self, _: tk.Event) -> None:
         self._temperature_editing = True
@@ -1959,6 +2038,14 @@ class CableCalcApp(tk.Tk):
                     self._set_medium_from_value(str(value))
                 else:
                     self._form_values[name].set(str(value))
+                widget = self._input_widgets.get(name)
+                if isinstance(widget, ttk.Combobox):
+                    current_values = list(widget.cget("values"))
+                    display_value = str(value)
+                    if display_value not in current_values and display_value != "":
+                        current_values.append(display_value)
+                        widget.configure(values=current_values)
+                        self._combobox_values[name] = current_values
 
         self.clear_table()
 
