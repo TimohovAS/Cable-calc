@@ -1028,6 +1028,31 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         },
     }
 
+    # Neutralize embedded dictionaries: use external data only
+    TRANSLATIONS: dict[str, dict[str, str]] = {}
+    TOOLTIPS: dict[str, dict[str, str]] = {}
+    HELP_TEXTS: dict[str, str] = {}
+    INSULATION_OPTIONS: list[str] = []
+    INSULATION_META: dict[str, dict[str, typing.Any]] = {}
+    CONDUCTOR_TYPES: list[str] = []
+    VOLTAGE_LEVELS: list[str] = []
+    TEMPERATURE_MEDIA: dict[str, dict[str, str]] = {}
+    INSTALLATION_METHODS: list[str] = []
+    STANDARD_SECTIONS: list[float] = []
+    METHOD_PREFERENCE: list[str] = []
+    STANDARD_CROSS_SECTIONS: list[str] = []
+    STANDARD_BREAKER_RATINGS: list[str] = []
+    DROP_LIMIT_KEYS: dict[str, float] = {}
+    RESISTIVITY_20: dict[str, float] = {}
+    TEMP_COEFF: dict[str, float] = {}
+    AMPACITY_BASE: dict[str, dict[float, float]] = {}
+    AMPACITY_INSULATION_FACTORS: dict[str, dict[str, dict[str, float]]] = {}
+    AMPACITY_LOADED_FACTORS: dict[str, dict[int, float]] = {}
+    GROUPING_FACTORS: dict[int, float] = {}
+    KT_V_TABLE: dict[str, dict[int, float]] = {}
+    KT_Z_TABLE: dict[str, dict[int, float]] = {}
+    REACTANCE_DATA: dict[str, typing.Any] = {}
+
     TREE_COLUMNS = (
         "Strujni krug",
         "OD",
