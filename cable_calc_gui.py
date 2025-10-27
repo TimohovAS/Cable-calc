@@ -831,6 +831,7 @@ class CableCalcApp(tk.Tk):
         self._intermediate_labels: dict[str, ttk.Label] = {}
         self._table_data: list[dict[str, str]] = []
         self._last_temperature_warning: tuple[str, str, float] | None = None
+        self._temperature_editing = False
         self._tooltips: list["Tooltip"] = []
         self._medium_selected_key = (
             self.DEFAULT_MEDIUM
@@ -1126,6 +1127,10 @@ class CableCalcApp(tk.Tk):
                 widget = ttk.Combobox(
                     grid, textvariable=var, values=list(self.DROP_LIMIT_KEYS.keys()), state="readonly"
                 )
+            elif label == "Температура, °C":
+                widget = ttk.Entry(grid, textvariable=var)
+                widget.bind("<FocusIn>", self._on_temperature_focus_in)
+                widget.bind("<FocusOut>", self._on_temperature_focus_out)
             elif label in {"Pj", "S", "T"}:
                 widget = ttk.Entry(grid, textvariable=var, state="readonly")
             else:
@@ -1376,7 +1381,18 @@ class CableCalcApp(tk.Tk):
         if widget_class == "TEntry":
             widget.configure(style="Invalid.TEntry")
 
+    def _on_temperature_focus_in(self, _: tk.Event) -> None:
+        self._temperature_editing = True
+
+    def _on_temperature_focus_out(self, _: tk.Event) -> None:
+        self._temperature_editing = False
+        self._update_intermediate_results()
+
     def _show_temperature_warning(self, insulation_key: str, medium: str, temperature: float) -> None:
+        if self._temperature_editing:
+            widget = self._input_widgets.get("Температура, °C")
+            if widget is not None and self.focus_get() == widget:
+                return
         rounded_temp = round(temperature, 1)
         key = (insulation_key, medium, rounded_temp)
         if self._last_temperature_warning == key:
@@ -1474,10 +1490,16 @@ class CableCalcApp(tk.Tk):
             self._last_temperature_warning = None
         else:
             t_display = ""
-            if temperature is not None and insulation_meta is not None:
+            if (
+                temperature is not None
+                and insulation_meta is not None
+                and not self._temperature_editing
+            ):
                 self._show_temperature_warning(insulation_meta["key"], medium_key, temperature)
         self._form_values["T"].set(t_display)
         self._intermediate_vars["T"].set(t_display or "—")
+        if self._temperature_editing:
+            temperature_alert = False
         self._set_entry_alert("Температура, °C", temperature_alert)
 
         eta_alert = False
