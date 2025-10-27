@@ -1028,31 +1028,6 @@ This program is designed to calculate cable parameters according to IEC 60364-5-
         },
     }
 
-    # Override embedded data with empty placeholders; load from data/ at runtime
-    TRANSLATIONS = {}
-    TOOLTIPS = {}
-    HELP_TEXTS = {}
-    INSULATION_OPTIONS = []
-    INSULATION_META = {}
-    CONDUCTOR_TYPES = []
-    VOLTAGE_LEVELS = []
-    TEMPERATURE_MEDIA = {}
-    INSTALLATION_METHODS = []
-    STANDARD_SECTIONS = []
-    METHOD_PREFERENCE = []
-    STANDARD_CROSS_SECTIONS = []
-    STANDARD_BREAKER_RATINGS = []
-    DROP_LIMIT_KEYS = {}
-    RESISTIVITY_20 = {}
-    TEMP_COEFF = {}
-    REACTANCE_PER_KM = {}
-    AMPACITY_BASE = {}
-    AMPACITY_INSULATION_FACTORS = {}
-    AMPACITY_LOADED_FACTORS = {}
-    GROUPING_FACTORS = {}
-    KT_V_TABLE = {}
-    KT_Z_TABLE = {}
-
     TREE_COLUMNS = (
         "Strujni krug",
         "OD",
